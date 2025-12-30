@@ -22,6 +22,7 @@ export interface LudoGameState {
     turnPhase: 'roll' | 'move' | 'wait';
     winner: number | null;
     moveHistory: MoveRecord[];
+    movableTokens?: number[]; // Tokens that can be moved after rolling
 }
 
 export interface MoveRecord {
