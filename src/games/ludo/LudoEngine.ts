@@ -188,7 +188,7 @@ export class LudoEngine extends GameEngine<LudoGameState> {
             } else {
                 // Normal move
                 const newPos = (currentPos + diceValue) % PATH_LENGTH;
-                token.zone = SAFE_POSITIONS.includes(newPos) ? 'safe' : 'path';
+                token.zone = 'path';
                 token.index = newPos;
                 captured = this.checkCapture(playerIndex, newPos);
             }
