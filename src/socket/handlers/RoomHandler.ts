@@ -1,0 +1,106 @@
+/**
+ * Room Handler
+ * Handles room join/leave and connection management
+ */
+
+import { Socket } from 'socket.io';
+import { BaseHandler } from './BaseHandler';
+import { socketManager } from '../SocketManager';
+import { SOCKET_EVENTS } from '../events';
+import { JoinRoomPayload } from '../types';
+import Room from '../../models/Room';
+
+export class RoomHandler extends BaseHandler {
+    register(socket: Socket): void {
+        // Room join
+        socket.on(
+            SOCKET_EVENTS.ROOM_JOIN,
+            this.wrapHandler(socket, SOCKET_EVENTS.ROOM_JOIN, (payload: JoinRoomPayload) =>
+                this.handleJoin(socket, payload)
+            )
+        );
+
+        // Room leave
+        socket.on(
+            SOCKET_EVENTS.ROOM_LEAVE,
+            this.wrapHandler(socket, SOCKET_EVENTS.ROOM_LEAVE, () =>
+                this.handleLeave(socket)
+            )
+        );
+
+        // Handle disconnect
+        socket.on(SOCKET_EVENTS.DISCONNECT, async () => {
+            await this.handleDisconnect(socket);
+        });
+    }
+
+    private async handleJoin(socket: Socket, payload: JoinRoomPayload): Promise<void> {
+        const { roomCode, sessionId, username } = payload;
+        const code = roomCode.toUpperCase();
+
+        // Find room in database
+        const room = await Room.findOne({ code });
+        if (!room) {
+            this.emitError(socket, 'Room not found');
+            return;
+        }
+
+        // Join socket.io room via manager
+        socketManager.joinRoom(socket, code);
+
+        // Store session data on socket
+        socket.data.roomCode = code;
+        socket.data.sessionId = sessionId;
+        socket.data.username = username;
+
+        // Update player connection status
+        const player = room.players.find(p => p.sessionId === sessionId);
+        if (player) {
+            player.isConnected = true;
+            await room.save();
+        }
+
+        // Emit room update to all players
+        this.emitToRoom(code, SOCKET_EVENTS.ROOM_UPDATE, {
+            players: room.players,
+            status: room.status,
+        });
+
+        console.log(`👤 ${username} joined room ${code}`);
+    }
+
+    private async handleLeave(socket: Socket): Promise<void> {
+        await this.handleDisconnect(socket);
+    }
+
+    private async handleDisconnect(socket: Socket): Promise<void> {
+        const { roomCode, sessionId } = this.getSocketData(socket);
+
+        // Leave room via manager
+        socketManager.leaveRoom(socket);
+
+        if (!roomCode || !sessionId) return;
+
+        try {
+            const room = await Room.findOne({ code: roomCode });
+            if (!room) return;
+
+            // Update player connection status
+            const player = room.players.find(p => p.sessionId === sessionId);
+            if (player) {
+                player.isConnected = false;
+                await room.save();
+
+                // Notify other players
+                this.emitToRoom(roomCode, SOCKET_EVENTS.ROOM_UPDATE, {
+                    players: room.players,
+                    status: room.status,
+                });
+            }
+
+            console.log(`👋 Player ${sessionId} disconnected from room ${roomCode}`);
+        } catch (error) {
+            console.error('Disconnect handler error:', error);
+        }
+    }
+}

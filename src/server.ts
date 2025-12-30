@@ -7,7 +7,7 @@ import dotenv from 'dotenv';
 import connectDB from './config/db';
 import routes from './routes';
 import { errorHandler, notFound } from './middleware/errorHandler';
-import { initializeSocket } from './socket/socketHandler';
+import { initializeSocket } from './socket';
 
 // Load environment variables
 dotenv.config();

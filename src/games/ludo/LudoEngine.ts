@@ -86,6 +86,9 @@ export class LudoEngine extends GameEngine<LudoGameState> {
 
         const movableTokens = this.getMovableTokens(playerIndex, diceValue);
 
+        // Store movable tokens in state for frontend access
+        this.state.movableTokens = movableTokens;
+
         if (movableTokens.length === 0) {
             // No moves available, pass turn
             if (diceValue !== 6) {
@@ -95,11 +98,8 @@ export class LudoEngine extends GameEngine<LudoGameState> {
                 this.state.canRollAgain = true;
                 this.state.turnPhase = 'roll';
             }
-        } else if (movableTokens.length === 1) {
-            // Only one option, auto-move
-            this.moveToken(playerIndex, { tokenIndex: movableTokens[0] });
         } else {
-            // Multiple options, wait for player choice
+            // Always let user choose which token to move (removed auto-move)
             this.state.turnPhase = 'move';
         }
 
