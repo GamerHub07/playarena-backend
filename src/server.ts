@@ -27,7 +27,6 @@ app.use(helmet());
 console.log("CORS_ORIGIN", process.env.CORS_ORIGIN || 'http://localhost:3000');
 app.use(cors({
   origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
-
   credentials: true,
 }));
 app.use(express.json());
