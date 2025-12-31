@@ -54,3 +54,10 @@ export const SAFE_POSITIONS = [0, 8, 13, 21, 26, 34, 39, 47]; // Star positions
 
 export const PATH_LENGTH = 52;
 export const HOME_STRETCH_LENGTH = 6;
+
+export const HOME_ENTRY_POSITIONS: Record<PlayerColor, number> = {
+    red: 50,
+    green: 11,
+    yellow: 24,
+    blue: 37,
+};

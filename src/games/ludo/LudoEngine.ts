@@ -10,6 +10,7 @@ import {
     PATH_LENGTH,
     HOME_STRETCH_LENGTH,
     PlayerColor,
+    HOME_ENTRY_POSITIONS,
 } from './LudoTypes';
 
 export class LudoEngine extends GameEngine<LudoGameState> {
@@ -134,26 +135,29 @@ export class LudoEngine extends GameEngine<LudoGameState> {
         const color = playerState.color;
 
         if (token.zone === 'finish') return false;
-        if (token.zone === 'home' && diceValue !== 6) return false;
+        if (token.zone === 'home') return diceValue === 6;
 
-        // Calculate new position
-        const startPos = PLAYER_START_POSITIONS[color];
-        const currentPos = token.index;
-        const newPos = (currentPos + diceValue) % PATH_LENGTH;
+        const homeEntry = HOME_ENTRY_POSITIONS[color];
+        const stepsToHome =
+            (homeEntry - token.index + PATH_LENGTH) % PATH_LENGTH;
 
-        // Check if entering home stretch
-        const distanceTraveled = (currentPos - startPos + PATH_LENGTH) % PATH_LENGTH;
-        const newDistance = distanceTraveled + diceValue;
-
-        if (newDistance >= PATH_LENGTH) {
-            const homeStretchPos = newDistance - PATH_LENGTH;
-            return homeStretchPos <= HOME_STRETCH_LENGTH;
+        if (token.zone === 'path') {
+            // can move on path or enter home stretch
+            return diceValue <= stepsToHome + HOME_STRETCH_LENGTH;
         }
 
-        return true;
+        if (token.zone === 'safe') {
+            // inside home stretch → exact roll only
+            return token.index + diceValue < HOME_STRETCH_LENGTH;
+        }
+
+        return false;
     }
 
-    private moveToken(playerIndex: number, payload: { tokenIndex: number }): LudoGameState {
+    private moveToken(
+        playerIndex: number,
+        payload: { tokenIndex: number }
+    ): LudoGameState {
         const { tokenIndex } = payload;
         const playerState = this.state.players[playerIndex];
         const token = playerState.tokens[tokenIndex];
@@ -163,38 +167,63 @@ export class LudoEngine extends GameEngine<LudoGameState> {
         const fromPosition = { ...token };
         let captured = false;
 
-        if (token.zone === 'home' && diceValue === 6) {
-            // Move out of home to start position
+        // 1️⃣ Move out of home
+        if (token.zone === 'home') {
+            if (diceValue !== 6) return this.state;
+
             token.zone = 'path';
             token.index = PLAYER_START_POSITIONS[color];
             captured = this.checkCapture(playerIndex, token.index);
-        } else if (token.zone === 'path' || token.zone === 'safe') {
-            const startPos = PLAYER_START_POSITIONS[color];
-            const currentPos = token.index;
-            const distanceTraveled = (currentPos - startPos + PATH_LENGTH) % PATH_LENGTH;
-            const newDistance = distanceTraveled + diceValue;
+        }
 
-            if (newDistance >= PATH_LENGTH) {
-                // Entering home stretch
-                const homeStretchPos = newDistance - PATH_LENGTH;
-                if (homeStretchPos === HOME_STRETCH_LENGTH) {
+        // 2️⃣ Token on main path
+        else if (token.zone === 'path') {
+            const homeEntry = HOME_ENTRY_POSITIONS[color];
+            const currentPos = token.index;
+
+            const stepsToHome =
+                (homeEntry - currentPos + PATH_LENGTH) % PATH_LENGTH;
+
+            if (diceValue <= stepsToHome) {
+                // stay on main path
+                token.zone = 'path';
+                token.index = (currentPos + diceValue) % PATH_LENGTH;
+                captured = this.checkCapture(playerIndex, token.index);
+            } else {
+                // enter home stretch
+                const homeSteps = diceValue - stepsToHome - 1;
+
+                if (homeSteps < HOME_STRETCH_LENGTH - 1) {
+                    token.zone = 'safe';
+                    token.index = homeSteps;
+                } else if (homeSteps === HOME_STRETCH_LENGTH - 1) {
                     token.zone = 'finish';
                     token.index = 0;
                     playerState.finishedTokens++;
                 } else {
-                    token.zone = 'safe';
-                    token.index = homeStretchPos;
+                    // overshoot = invalid
+                    return this.state;
                 }
-            } else {
-                // Normal move
-                const newPos = (currentPos + diceValue) % PATH_LENGTH;
-                token.zone = 'path';
-                token.index = newPos;
-                captured = this.checkCapture(playerIndex, newPos);
             }
         }
 
-        // Record move
+        // 3️⃣ Token already in home stretch
+        else if (token.zone === 'safe') {
+            const newIndex = token.index + diceValue;
+
+            if (newIndex < HOME_STRETCH_LENGTH - 1) {
+                token.index = newIndex;
+            } else if (newIndex === HOME_STRETCH_LENGTH - 1) {
+                token.zone = 'finish';
+                token.index = 0;
+                playerState.finishedTokens++;
+            } else {
+                // overshoot
+                return this.state;
+            }
+        }
+
+        // 4️⃣ Record move
         this.state.moveHistory.push({
             player: playerIndex,
             tokenIndex,
@@ -204,15 +233,21 @@ export class LudoEngine extends GameEngine<LudoGameState> {
             timestamp: Date.now(),
         });
 
-        // Check win condition
+        // 5️⃣ Win check
         if (playerState.finishedTokens === 4) {
             this.state.winner = playerIndex;
             this.state.turnPhase = 'wait';
             return this.state;
         }
 
-        // Handle turn progression
-        if (diceValue === 6 || captured) {
+        // 6️⃣ Turn handling
+        // Grant extra turn if:
+        // 1. Rolled a 6
+        // 2. Captured an opponent
+        // 3. Token reached finish (home)
+        const finished = token.zone === 'finish' && fromPosition.zone !== 'finish';
+
+        if (diceValue === 6 || captured || finished) {
             this.state.canRollAgain = true;
             this.state.turnPhase = 'roll';
         } else {
@@ -222,6 +257,7 @@ export class LudoEngine extends GameEngine<LudoGameState> {
         this.state.diceValue = null;
         return this.state;
     }
+
 
     private checkCapture(playerIndex: number, position: number): boolean {
         if (SAFE_POSITIONS.includes(position)) return false;
