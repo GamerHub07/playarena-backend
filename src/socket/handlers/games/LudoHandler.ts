@@ -218,6 +218,8 @@ export class LudoHandler extends BaseHandler {
                 const pos = getTokenGridPosition(currentPlayer, newZone, newIndex, tokenIndex);
                 if (pos) {
                     const isFinalStep = step === diceValue;
+                    const capturedList = isFinalStep ? this.wasTokenCaptured(stateBefore, stateAfter, currentPlayer) : [];
+
                     steps.push({
                         playerIndex: currentPlayer,
                         tokenIndex,
@@ -226,7 +228,9 @@ export class LudoHandler extends BaseHandler {
                         col: pos.col,
                         stepNumber: step,
                         totalSteps: diceValue,
-                        captured: isFinalStep && this.wasTokenCaptured(stateBefore, stateAfter, currentPlayer),
+                        // @ts-ignore - extending type dynamically
+                        capturedTokens: capturedList.length > 0 ? capturedList : undefined,
+                        captured: capturedList.length > 0,
                     });
                 }
             }
@@ -242,21 +246,24 @@ export class LudoHandler extends BaseHandler {
         stateBefore: ReturnType<LudoEngine['getState']>,
         stateAfter: ReturnType<LudoEngine['getState']>,
         movingPlayer: number
-    ): boolean {
+    ): { playerIndex: number; tokenIndex: number }[] {
+        const captured: { playerIndex: number; tokenIndex: number }[] = [];
+
         // Check if any opponent token went back to home
         for (const [idx, playerState] of Object.entries(stateAfter.players)) {
-            if (parseInt(idx) === movingPlayer) continue;
+            const playerIdx = parseInt(idx);
+            if (playerIdx === movingPlayer) continue;
 
-            const beforeState = stateBefore.players[parseInt(idx)];
+            const beforeState = stateBefore.players[playerIdx];
             for (let i = 0; i < playerState.tokens.length; i++) {
                 if (
                     beforeState.tokens[i].zone !== 'home' &&
                     playerState.tokens[i].zone === 'home'
                 ) {
-                    return true;
+                    captured.push({ playerIndex: playerIdx, tokenIndex: i });
                 }
             }
         }
-        return false;
+        return captured;
     }
 }
