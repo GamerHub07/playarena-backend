@@ -15,6 +15,10 @@ import {
 
 export class LudoEngine extends GameEngine<LudoGameState> {
 
+    getGameType(): string {
+        return 'ludo';
+    }
+
     getMinPlayers(): number {
         return 2;
     }
