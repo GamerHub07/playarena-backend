@@ -4,17 +4,18 @@ import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
 
+// Load environment variables FIRST (before any imports that use them)
+dotenv.config();
+
 import connectDB from './config/db';
+import { logFeatureFlags } from './config/featureFlags';
 import routes from './routes';
 import { errorHandler, notFound } from './middleware/errorHandler';
 import { initializeSocket } from './socket';
 
-// Load environment variables
-dotenv.config();
-
 const app: Application = express();
 const httpServer = createServer(app);
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT;
 
 // Connect to MongoDB
 connectDB();
@@ -22,10 +23,13 @@ connectDB();
 // Initialize Socket.io
 const io = initializeSocket(httpServer);
 
+// Log feature flags status
+logFeatureFlags();
+
 // Middleware
 app.use(helmet());
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+  origin: process.env.CORS_ORIGIN,
   credentials: true,
 }));
 app.use(express.json());

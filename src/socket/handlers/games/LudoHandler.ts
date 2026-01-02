@@ -5,13 +5,13 @@
 
 import { Socket } from 'socket.io';
 import { BaseHandler } from '../BaseHandler';
-import { socketManager } from '../../SocketManager';
 import { SOCKET_EVENTS } from '../../events';
 import { GameActionPayload, GameStartPayload, TokenMoveStep } from '../../types';
 import { LudoEngine } from '../../../games/ludo/LudoEngine';
 import { TokenPosition, PLAYER_START_POSITIONS, PATH_LENGTH, PLAYER_COLORS } from '../../../games/ludo/LudoTypes';
 import Room from '../../../models/Room';
 import { MAIN_TRACK, HOME_STRETCH, getTokenGridPosition, PLAYER_COLOR_MAP } from '../../../games/ludo/LudoBoardLayout';
+import { gameStore } from '../../../services/gameStore';
 
 export class LudoHandler extends BaseHandler {
     register(socket: Socket): void {
@@ -53,8 +53,9 @@ export class LudoHandler extends BaseHandler {
             return;
         }
 
-        // Create game engine
-        const engine = new LudoEngine(code);
+        // Create game engine via GameStore
+        const engine = gameStore.createGame('ludo', code) as LudoEngine;
+
         room.players.forEach(p => {
             engine.addPlayer({
                 sessionId: p.sessionId,
@@ -65,9 +66,6 @@ export class LudoHandler extends BaseHandler {
 
         // Initialize game
         engine.handleAction(socket.data.sessionId, 'init', null);
-
-        // Store engine in manager
-        socketManager.setGameEngine(code, engine);
 
         // Update room status
         room.status = 'playing';
@@ -87,8 +85,10 @@ export class LudoHandler extends BaseHandler {
         const { roomCode, action, data } = payload;
         const code = roomCode.toUpperCase();
 
-        const engine = socketManager.getGameEngine(code);
-        if (!engine || !(engine instanceof LudoEngine)) {
+        // Get game from GameStore
+        const engine = gameStore.getGame(code) as LudoEngine | undefined;
+
+        if (!engine) {
             this.emitError(socket, 'Game not found');
             return;
         }
@@ -135,7 +135,9 @@ export class LudoHandler extends BaseHandler {
             const winner = engine.getPlayers()[winnerIndex!];
 
             await Room.updateOne({ code }, { status: 'finished' });
-            socketManager.removeGameEngine(code);
+
+            // Clean up game from store
+            gameStore.deleteGame(code);
 
             this.emitToRoom(code, SOCKET_EVENTS.GAME_WINNER, {
                 winner: {
