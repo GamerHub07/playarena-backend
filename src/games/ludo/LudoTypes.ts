@@ -11,6 +11,7 @@ export interface PlayerState {
     color: PlayerColor;
     tokens: TokenPosition[];
     finishedTokens: number;
+    rank?: number; // 1 for 1st, 2 for 2nd, etc.
 }
 
 export interface LudoGameState {
@@ -20,7 +21,8 @@ export interface LudoGameState {
     lastRoll: number | null;
     canRollAgain: boolean;
     turnPhase: 'roll' | 'move' | 'wait';
-    winner: number | null;
+    winner: number | null; // Keeps track of the FIRST winner for backward compatibility logic if needed
+    finishedPlayers: number[]; // Array of player indices in order of finishing
     moveHistory: MoveRecord[];
     movableTokens?: number[]; // Tokens that can be moved after rolling
 }
