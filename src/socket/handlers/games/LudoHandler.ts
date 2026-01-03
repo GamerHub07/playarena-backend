@@ -131,8 +131,37 @@ export class LudoHandler extends BaseHandler {
 
         // Check for winner
         if (engine.isGameOver()) {
-            const winnerIndex = engine.getWinner();
-            const winner = engine.getPlayers()[winnerIndex!];
+            // Construct leaderboard
+            // 1. Players who finished (in order)
+            // 2. Remaining players (should be just one loser, or multiple if we stop early)
+
+            const state = engine.getState();
+            const players = engine.getPlayers();
+            const leaderboard: Array<{ position: number, username: string, sessionId: string, rank: number }> = [];
+
+            // Add finished players
+            state.finishedPlayers.forEach((playerIndex, idx) => {
+                const p = players[playerIndex];
+                leaderboard.push({
+                    position: playerIndex,
+                    username: p.username,
+                    sessionId: p.sessionId,
+                    rank: idx + 1 // 1st, 2nd, 3rd...
+                });
+            });
+
+            // Add remaining players (who didn't finish)
+            Object.entries(players).forEach(([idxStr, p]) => {
+                const idx = parseInt(idxStr);
+                if (!state.finishedPlayers.includes(idx)) {
+                    leaderboard.push({
+                        position: idx,
+                        username: p.username,
+                        sessionId: p.sessionId,
+                        rank: leaderboard.length + 1 // Last place(s)
+                    });
+                }
+            });
 
             await Room.updateOne({ code }, { status: 'finished' });
 
@@ -140,14 +169,11 @@ export class LudoHandler extends BaseHandler {
             gameStore.deleteGame(code);
 
             this.emitToRoom(code, SOCKET_EVENTS.GAME_WINNER, {
-                winner: {
-                    position: winnerIndex,
-                    username: winner.username,
-                    sessionId: winner.sessionId,
-                },
+                winner: leaderboard[0], // Keep for backward compatibility if frontend uses it
+                leaderboard // Full list
             });
 
-            console.log(`🏆 ${winner.username} won in room ${code}`);
+            console.log(`🏆 Game finished in room ${code}. Winner: ${leaderboard[0].username}`);
         }
     }
 

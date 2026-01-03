@@ -36,6 +36,7 @@ export class LudoEngine extends GameEngine<LudoGameState> {
             canRollAgain: false,
             turnPhase: 'roll',
             winner: null,
+            finishedPlayers: [],
             moveHistory: [],
         };
     }
@@ -52,6 +53,8 @@ export class LudoEngine extends GameEngine<LudoGameState> {
         });
         this.state.currentPlayer = 0;
         this.state.turnPhase = 'roll';
+        this.state.finishedPlayers = [];
+        this.state.winner = null;
     }
 
     handleAction(playerId: string, action: string, payload: unknown): LudoGameState {
@@ -59,6 +62,11 @@ export class LudoEngine extends GameEngine<LudoGameState> {
 
         if (playerIndex === -1) {
             throw new Error('Player not found');
+        }
+
+        // Check if player has already finished
+        if (action !== 'init' && this.state.players[playerIndex]?.rank) {
+            throw new Error('You have already finished the game');
         }
 
         if (playerIndex !== this.state.currentPlayer && action !== 'init') {
@@ -104,7 +112,7 @@ export class LudoEngine extends GameEngine<LudoGameState> {
                 this.state.turnPhase = 'roll';
             }
         } else {
-            // Always let user choose which token to move (removed auto-move)
+            // Always let user choose which token to move
             this.state.turnPhase = 'move';
         }
 
@@ -237,21 +245,42 @@ export class LudoEngine extends GameEngine<LudoGameState> {
             timestamp: Date.now(),
         });
 
-        // 5️⃣ Win check
+        // 5️⃣ Check if player finished
+        const finished = token.zone === 'finish' && fromPosition.zone !== 'finish';
+
         if (playerState.finishedTokens === 4) {
-            this.state.winner = playerIndex;
-            this.state.turnPhase = 'wait';
-            return this.state;
+            // Player finished the game
+            if (!this.state.finishedPlayers.includes(playerIndex)) {
+                this.state.finishedPlayers.push(playerIndex);
+                playerState.rank = this.state.finishedPlayers.length;
+
+                // If this is the first winner, set the legacy winner field
+                if (this.state.winner === null) {
+                    this.state.winner = playerIndex;
+                }
+            }
         }
 
         // 6️⃣ Turn handling
+        // If game is over completely
+        if (this.isGameOver()) {
+            this.state.turnPhase = 'wait';
+            // If there's one player left who hasn't finished, they technically "lose" or are last.
+            // But we don't strictly need to do anything here, the handler will end the game.
+            return this.state;
+        }
+
+        // If this player finished just now, they don't get an extra turn, turn passes to next.
+        // UNLESS, well, if they finish, they are done.
+
+        if (playerState.finishedTokens === 4) {
+            this.nextTurn();
+        }
         // Grant extra turn if:
         // 1. Rolled a 6
         // 2. Captured an opponent
-        // 3. Token reached finish (home)
-        const finished = token.zone === 'finish' && fromPosition.zone !== 'finish';
-
-        if (diceValue === 6 || captured || finished) {
+        // 3. Token reached finish (home) - BUT only if they haven't finished the whole game logic above
+        else if (diceValue === 6 || captured || finished) {
             this.state.canRollAgain = true;
             this.state.turnPhase = 'roll';
         } else {
@@ -270,12 +299,20 @@ export class LudoEngine extends GameEngine<LudoGameState> {
         Object.entries(this.state.players).forEach(([idx, player]) => {
             if (parseInt(idx) === playerIndex) return;
 
-            player.tokens.forEach(token => {
-                if (token.zone === 'path' && token.index === position) {
-                    token.zone = 'home';
-                    token.index = 0;
-                    captured = true;
-                }
+            // Find all tokens of this opponent at the current position
+            const opponentTokensAtPos = player.tokens.filter(
+                token => token.zone === 'path' && token.index === position
+            );
+
+            // If 2 or more tokens of same color, it's a safe block -> No capture
+            if (opponentTokensAtPos.length >= 2) {
+                return;
+            }
+
+            opponentTokensAtPos.forEach(token => {
+                token.zone = 'home';
+                token.index = 0;
+                captured = true;
             });
         });
 
@@ -283,14 +320,40 @@ export class LudoEngine extends GameEngine<LudoGameState> {
     }
 
     private nextTurn(): void {
-        this.state.currentPlayer = (this.state.currentPlayer + 1) % this.players.length;
+        const totalPlayers = this.players.length;
+        let nextPlayerIndex = (this.state.currentPlayer + 1) % totalPlayers;
+
+        // Skip players who have finished
+        // Safety check: if all players finished, break (should be handled by isGameOver)
+        let attempts = 0;
+        while (this.state.players[nextPlayerIndex]?.rank && attempts < totalPlayers) {
+            nextPlayerIndex = (nextPlayerIndex + 1) % totalPlayers;
+            attempts++;
+        }
+
+        if (attempts >= totalPlayers) {
+            // Everyone finished?
+            this.state.turnPhase = 'wait';
+            return;
+        }
+
+        this.state.currentPlayer = nextPlayerIndex;
         this.state.turnPhase = 'roll';
         this.state.canRollAgain = false;
         this.state.diceValue = null;
     }
 
     isGameOver(): boolean {
-        return this.state.winner !== null;
+        const totalPlayers = this.players.length;
+        // Game ends when (Total Players - 1) have finished.
+        // The last remaining player has lost/is last.
+        // However, if there is only 1 player (testing mode), game ends when they finish.
+        if (totalPlayers === 1) {
+            return this.state.finishedPlayers.length === 1;
+        } if (totalPlayers > 1) {
+            return this.state.finishedPlayers.length >= totalPlayers - 1;
+        }
+        return false;
     }
 
     getWinner(): number | null {
