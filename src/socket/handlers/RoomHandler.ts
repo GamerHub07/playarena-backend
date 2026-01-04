@@ -27,7 +27,7 @@ export class RoomHandler extends BaseHandler {
                 this.handleLeave(socket)
             )
         );
-
+        console.log("testing")
         // Handle disconnect
         socket.on(SOCKET_EVENTS.DISCONNECT, async () => {
             await this.handleDisconnect(socket);
