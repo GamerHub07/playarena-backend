@@ -22,6 +22,8 @@ export const SOCKET_EVENTS = {
     ROOM_LEAVE: 'room:leave',
     // ⚠️ PROD EVENT — DO NOT CHANGE
     ROOM_UPDATE: 'room:update',
+    // Theme change event (host only)
+    ROOM_THEME: 'room:theme',
 
     // Game lifecycle events
     // ⚠️ PROD EVENT — DO NOT CHANGE
