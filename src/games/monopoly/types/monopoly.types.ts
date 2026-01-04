@@ -21,6 +21,10 @@ export interface BoardSquare {
   owner?: string | null;
   amount?: number;
   color?: string;
+  // House/Hotel support
+  houses?: number; // 0-4 houses, 5 = hotel
+  houseCost?: number; // Cost to build one house
+  rentTiers?: number[]; // [base, 1house, 2house, 3house, 4house, hotel]
 }
 
 export interface DrawnCard {
