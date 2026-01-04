@@ -70,9 +70,9 @@ export class PokerHandler extends BaseHandler {
         room.gameState = engine.getState() as unknown as Record<string, unknown>;
         await room.save();
 
+        // ✅ ONLY SEND STATE (PokerState already contains players)
         this.emitToRoom(code, SOCKET_EVENTS.GAME_START, {
             state: engine.getState(),
-            players: engine.getPlayers(),
         });
 
         console.log(`🃏 Poker game started in room ${code}`);
@@ -96,6 +96,7 @@ export class PokerHandler extends BaseHandler {
 
         const newState = engine.handleAction(sessionId, action, data);
 
+        // ✅ ALWAYS emit PokerState only
         this.emitToRoom(code, SOCKET_EVENTS.GAME_STATE, {
             state: newState,
             lastAction: { action, by: sessionId, data },
@@ -107,31 +108,27 @@ export class PokerHandler extends BaseHandler {
         );
 
         if (engine.isGameOver()) {
-            
-            const players = engine.getPlayers();
+            const state = engine.getState();
             const winnerIndex = engine.getWinner();
 
-if (winnerIndex === null) {
-  this.emitError(socket, 'Game ended but winner could not be determined');
-  return;
-}
+            if (winnerIndex === null) {
+                this.emitError(socket, 'Game ended but winner could not be determined');
+                return;
+            }
 
-const winnerPlayer = players[winnerIndex];
+            const winnerPlayer = state.players[winnerIndex];
 
-this.emitToRoom(code, SOCKET_EVENTS.GAME_WINNER, {
-  winner: {
-    position: winnerIndex,
-    username: winnerPlayer.username,
-    sessionId: winnerPlayer.sessionId,
-  },
-});
+            this.emitToRoom(code, SOCKET_EVENTS.GAME_WINNER, {
+                winner: {
+                    position: winnerIndex,
+                    username: winnerPlayer.username,
+                    sessionId: winnerPlayer.sessionId,
+                },
+            });
 
-console.log(
-  `🏆 Poker finished in room ${code}. Winner: ${winnerPlayer.username}`
-);
-
-
-            
+            console.log(
+                `🏆 Poker finished in room ${code}. Winner: ${winnerPlayer.username}`
+            );
         }
     }
 }
