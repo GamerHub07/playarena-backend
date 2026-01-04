@@ -9,6 +9,7 @@ import { resolveSquare } from "./BoardResolver";
 import { advanceTurn } from "./TurnManager";
 import { logPassGo, logJailFine, logPropertyBought, logPropertySold, logHouseBuilt, logHotelBuilt } from "./GameLogger";
 
+
 export class MonopolyEngine extends GameEngine<MonopolyGameState> {
   getGameType(): string {
     return "monopoly";
@@ -68,7 +69,6 @@ export class MonopolyEngine extends GameEngine<MonopolyGameState> {
         const d2 = Math.ceil(Math.random() * 6);
         this.state.dice = [d1, d2];
         const isDoubles = d1 === d2;
-
         // Helper to move player and collect $200 if passing GO
         const movePlayer = (spaces: number) => {
           const oldPosition = player.position;

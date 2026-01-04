@@ -58,7 +58,6 @@ export interface GameLogEntry {
   relatedPlayerName?: string;
   propertyName?: string;       // For property-related logs
 }
-
 export interface MonopolyGameState {
   currentTurnIndex: number;
   phase: TurnPhase;
@@ -68,5 +67,6 @@ export interface MonopolyGameState {
   lastCard?: DrawnCard | null;
   doublesCount: number; // Track consecutive doubles (3 = jail)
   gameLog: GameLogEntry[]; // Transaction log for money flow
+
 }
 

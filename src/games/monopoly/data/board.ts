@@ -5,6 +5,7 @@ import { BoardSquare } from "../types/monopoly.types";
  * Based on classic Monopoly layout with Indian cities
  * 
  * rentTiers: [base, 1house, 2houses, 3houses, 4houses, hotel]
+
  */
 export const BOARD: BoardSquare[] = [
     // Bottom row (left to right): GO to Jail/Visiting
@@ -58,6 +59,7 @@ export const BOARD: BoardSquare[] = [
 
 // Find jail index for Go To Jail functionality
 export const JAIL_INDEX = BOARD.findIndex(s => s.type === "JAIL");
+
 
 // Color group sizes for monopoly check
 export const COLOR_GROUP_SIZES: Record<string, number> = {

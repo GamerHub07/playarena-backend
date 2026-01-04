@@ -40,11 +40,9 @@ function registerHandlers(socket: Socket): void {
     // Ludo game events
     const ludoHandler = new LudoHandler();
     ludoHandler.register(socket);
-
     // Snake & Ladder game events
     const snakeLadderHandler = new SnakeLadderHandler();
     snakeLadderHandler.register(socket);
-
     // Monopoly game events
     const monopolyHandler = new MonopolyHandler();
     monopolyHandler.register(socket);

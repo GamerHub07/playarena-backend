@@ -144,7 +144,6 @@ export function canBuildHotel(
  * - Base rent for unimproved property
  * - Double rent if player has monopoly (all of that color) with no houses
  * - Use rent tiers if houses/hotel are built
-
  */
 export function calculateRent(
   state: MonopolyGameState,
@@ -164,7 +163,6 @@ export function calculateRent(
   if (houses === 0 && square.color && hasMonopoly(state, ownerId, square.color)) {
     return baseRent * 2;
   }
-
   return baseRent;
 }
 
@@ -181,7 +179,6 @@ export function calculateRailroadRent(
   );
   const count = railroads.length;
   if (count === 0) return 0;
-
 
   return 25 * Math.pow(2, count - 1); // 25, 50, 100, 200
 }
