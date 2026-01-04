@@ -72,6 +72,7 @@ export class RoomHandler extends BaseHandler {
         this.emitToRoom(code, SOCKET_EVENTS.ROOM_UPDATE, {
             players: room.players,
             status: room.status,
+            gameState: room.gameState,
         });
 
         console.log(`👤 ${username} joined room ${code}`);
