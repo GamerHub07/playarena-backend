@@ -1,5 +1,6 @@
 import { MonopolyGameState, MonopolyPlayerState } from "../types/monopoly.types";
 import { Card, CardAction, CHANCE_CARDS, COMMUNITY_CHEST_CARDS, JAIL_INDEX } from "../data/cards";
+import { logCardCollect, logCardPay, logCardTransfer, logPassGo } from "./GameLogger";
 
 // Shuffled card decks (in memory per game)
 let chanceIndex = 0;
@@ -73,10 +74,12 @@ export function executeCard(
   switch (action.type) {
     case "COLLECT":
       player.cash += action.amount;
+      logCardCollect(state, playerId, action.amount, card.text);
       break;
 
     case "PAY":
       player.cash -= action.amount;
+      logCardPay(state, playerId, action.amount, card.text);
       // Check bankruptcy
       if (player.cash < 0) {
         player.bankrupt = true;
@@ -90,6 +93,7 @@ export function executeCard(
       // Collect $200 if passing GO (moving forward)
       if (action.position < oldPosition && action.position !== JAIL_INDEX) {
         player.cash += 200;
+        logPassGo(state, playerId);
       }
       break;
     }
@@ -116,6 +120,9 @@ export function executeCard(
             const payment = Math.min(action.amount, other.cash);
             other.cash -= payment;
             player.cash += payment;
+            if (payment > 0) {
+              logCardTransfer(state, pid, playerId, payment, card.text);
+            }
           }
         }
       }
@@ -129,14 +136,31 @@ export function executeCard(
             const payment = Math.min(action.amount, player.cash);
             player.cash -= payment;
             other.cash += payment;
+            if (payment > 0) {
+              logCardTransfer(state, playerId, pid, payment, card.text);
+            }
           }
         }
       }
       break;
 
-    case "REPAIRS":
-      // For now, no houses/hotels implemented - just skip
-      // TODO: Calculate repairs when houses are added
+    case "REPAIRS": {
+      // Calculate repair costs based on houses/hotels
+      let totalCost = 0;
+      for (const square of state.board) {
+        if (square.owner === playerId && square.houses) {
+          if (square.houses === 5) {
+            totalCost += action.perHotel;
+          } else {
+            totalCost += square.houses * action.perHouse;
+          }
+        }
+      }
+      if (totalCost > 0) {
+        player.cash -= totalCost;
+        logCardPay(state, playerId, totalCost, card.text);
+      }
       break;
+    }
   }
 }

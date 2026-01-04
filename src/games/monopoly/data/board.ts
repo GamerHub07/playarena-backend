@@ -69,4 +69,4 @@ export const COLOR_GROUP_SIZES: Record<string, number> = {
     yellow: 3,
     green: 3,
     blue: 2,
-};
+}
