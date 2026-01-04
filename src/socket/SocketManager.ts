@@ -6,12 +6,13 @@
 import { Server as SocketServer, Socket } from 'socket.io';
 import { Server as HttpServer } from 'http';
 import { LudoEngine } from '../games/ludo/LudoEngine';
+import { PokerEngine } from '../games/poker/PokerEngine';
 
-export type GameEngine = LudoEngine; // Extend with other game engines as needed
+export type GameEngineInstance = LudoEngine | PokerEngine; // Extend with other game engines as needed
 
 interface RoomConnection {
     sockets: Set<string>;
-    gameEngine?: GameEngine;
+    gameEngine?: GameEngineInstance;
 }
 
 class SocketManager {
@@ -117,7 +118,7 @@ class SocketManager {
     /**
      * Get or create game engine for a room
      */
-    setGameEngine(roomCode: string, engine: GameEngine): void {
+    setGameEngine(roomCode: string, engine: GameEngineInstance): void {
         const normalizedCode = roomCode.toUpperCase();
         let roomConnection = this.rooms.get(normalizedCode);
 
@@ -133,7 +134,7 @@ class SocketManager {
     /**
      * Get game engine for a room
      */
-    getGameEngine(roomCode: string): GameEngine | undefined {
+    getGameEngine(roomCode: string): GameEngineInstance | undefined {
         const normalizedCode = roomCode.toUpperCase();
         return this.rooms.get(normalizedCode)?.gameEngine;
     }
