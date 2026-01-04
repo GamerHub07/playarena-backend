@@ -6,7 +6,7 @@
 import { Server as SocketServer, Socket } from 'socket.io';
 import { Server as HttpServer } from 'http';
 import { socketManager } from './SocketManager';
-import { RoomHandler, LudoHandler } from './handlers';
+import { RoomHandler, LudoHandler, MonopolyHandler } from './handlers';
 import { SOCKET_EVENTS } from './events';
 
 /**
@@ -39,6 +39,10 @@ function registerHandlers(socket: Socket): void {
     // Ludo game events
     const ludoHandler = new LudoHandler();
     ludoHandler.register(socket);
+
+    // Monopoly game events
+    const monopolyHandler = new MonopolyHandler();
+    monopolyHandler.register(socket);
 
     // Add more game handlers here as needed:
     // const chessHandler = new ChessHandler();
