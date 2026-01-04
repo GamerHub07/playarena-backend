@@ -18,7 +18,7 @@ export class MonopolyEngine extends GameEngine<MonopolyGameState> {
   }
 
   getMaxPlayers(): number {
-    return 5;
+    return 6;
   }
 
   getInitialState(): MonopolyGameState {
@@ -70,7 +70,7 @@ export class MonopolyEngine extends GameEngine<MonopolyGameState> {
         // Handle jail
         if (player.inJail) {
           player.jailTurns++;
-          
+
           // Rolled doubles - get out of jail free
           if (isDoubles) {
             player.inJail = false;
@@ -96,7 +96,7 @@ export class MonopolyEngine extends GameEngine<MonopolyGameState> {
           // Track consecutive doubles
           if (isDoubles) {
             this.state.doublesCount++;
-            
+
             // 3 consecutive doubles = go to jail!
             if (this.state.doublesCount >= 3) {
               const JAIL_INDEX = this.state.board.findIndex(s => s.type === "JAIL");
@@ -109,7 +109,7 @@ export class MonopolyEngine extends GameEngine<MonopolyGameState> {
           } else {
             this.state.doublesCount = 0;
           }
-          
+
           // Normal movement
           player.position = (player.position + d1 + d2) % this.state.board.length;
           this.state.phase = "RESOLVE";
@@ -157,7 +157,7 @@ export class MonopolyEngine extends GameEngine<MonopolyGameState> {
         player.cash -= square.price!;
         square.owner = playerId;
         player.properties.push(square.id);
-        
+
         // Check for doubles - player gets another roll
         const isDoublesRoll = this.state.dice && this.state.dice[0] === this.state.dice[1];
         this.state.phase = isDoublesRoll ? "ROLL" : "END_TURN";
@@ -170,7 +170,7 @@ export class MonopolyEngine extends GameEngine<MonopolyGameState> {
         if (propIndex === -1) {
           throw new Error("Player does not own this property");
         }
-        
+
         const square = this.state.board.find(s => s.id === propertyId);
         if (!square) {
           throw new Error("Property not found");
@@ -205,6 +205,62 @@ export class MonopolyEngine extends GameEngine<MonopolyGameState> {
         }
         const isDoublesDecline = this.state.dice && this.state.dice[0] === this.state.dice[1];
         this.state.phase = isDoublesDecline ? "ROLL" : "END_TURN";
+        break;
+      }
+
+      case "BUILD_HOUSE": {
+        const { propertyId } = payload as { propertyId: string };
+        const square = this.state.board.find(s => s.id === propertyId);
+
+        if (!square || square.type !== "PROPERTY") {
+          throw new Error("Invalid property");
+        }
+
+        if (square.owner !== playerId) {
+          throw new Error("You don't own this property");
+        }
+
+        // Import validation function
+        const { canBuildHouse } = require("./RentCalculator");
+        const result = canBuildHouse(this.state, playerId, propertyId);
+
+        if (!result.canBuild) {
+          throw new Error(result.reason || "Cannot build house");
+        }
+
+        const cost = square.houseCost ?? 0;
+        player.cash -= cost;
+        square.houses = (square.houses ?? 0) + 1;
+
+        // Don't change phase - player can keep building or take other actions
+        break;
+      }
+
+      case "BUILD_HOTEL": {
+        const { propertyId: hotelPropertyId } = payload as { propertyId: string };
+        const hotelSquare = this.state.board.find(s => s.id === hotelPropertyId);
+
+        if (!hotelSquare || hotelSquare.type !== "PROPERTY") {
+          throw new Error("Invalid property");
+        }
+
+        if (hotelSquare.owner !== playerId) {
+          throw new Error("You don't own this property");
+        }
+
+        // Import validation function
+        const { canBuildHotel } = require("./RentCalculator");
+        const hotelResult = canBuildHotel(this.state, playerId, hotelPropertyId);
+
+        if (!hotelResult.canBuild) {
+          throw new Error(hotelResult.reason || "Cannot build hotel");
+        }
+
+        const hotelCost = hotelSquare.houseCost ?? 0;
+        player.cash -= hotelCost;
+        hotelSquare.houses = 5; // 5 = hotel
+
+        // Don't change phase - player can keep building or take other actions
         break;
       }
 
