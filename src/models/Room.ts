@@ -1,6 +1,8 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
-export type GameType = 'ludo' | 'chess' | 'carrom';
+
+export type GameType = 'ludo' | 'chess' | 'snake-ladder' | 'monopoly';
+
 export type RoomStatus = 'waiting' | 'playing' | 'finished';
 
 export interface IPlayer {
@@ -46,7 +48,9 @@ const RoomSchema = new Schema<IRoom>({
     gameType: {
         type: String,
         required: true,
-        enum: ['ludo', 'chess', 'carrom'],
+
+        enum: ['ludo', 'chess', 'snake-ladder', 'monopoly'],
+
     },
     status: {
         type: String,
