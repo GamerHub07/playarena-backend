@@ -25,6 +25,11 @@ export interface FeatureFlags {
      * WARNING: Verbose - disable in production
      */
     DEBUG_SOCKET_EVENTS: boolean;
+
+    /**
+     * Enable Poker game
+     */
+    ENABLE_POKER: boolean;
 }
 
 /**
@@ -42,6 +47,7 @@ export const featureFlags: FeatureFlags = {
     USE_GAME_ROUTER: parseBoolean(process.env.USE_GAME_ROUTER, false),
     USE_STANDARD_ROOM_NAMES: parseBoolean(process.env.USE_STANDARD_ROOM_NAMES, false),
     DEBUG_SOCKET_EVENTS: parseBoolean(process.env.DEBUG_SOCKET_EVENTS, false),
+    ENABLE_POKER: parseBoolean(process.env.ENABLE_POKER, true),
 };
 
 /**

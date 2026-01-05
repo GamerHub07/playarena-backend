@@ -10,7 +10,6 @@ export function hasMonopoly(
   color: string
 ): boolean {
   if (!color || !COLOR_GROUP_SIZES[color]) return false;
-
   const propertiesOfColor = state.board.filter(
     s => s.type === "PROPERTY" && s.color === color
   );
@@ -18,11 +17,11 @@ export function hasMonopoly(
   const ownedCount = propertiesOfColor.filter(
     s => s.owner === playerId
   ).length;
-
   return ownedCount === COLOR_GROUP_SIZES[color];
 }
 
 /**
+
  * Get all properties of a color group
  */
 export function getPropertiesOfColor(
@@ -164,7 +163,6 @@ export function calculateRent(
   if (houses === 0 && square.color && hasMonopoly(state, ownerId, square.color)) {
     return baseRent * 2;
   }
-
   return baseRent;
 }
 
@@ -179,7 +177,6 @@ export function calculateRailroadRent(
   const railroads = state.board.filter(
     s => s.type === "RAILROAD" && s.owner === ownerId
   );
-
   const count = railroads.length;
   if (count === 0) return 0;
 

@@ -11,7 +11,9 @@ export function advanceTurn(
   } while (state.playerState[orderedPlayers[next]].bankrupt);
 
   state.currentTurnIndex = next;
-  state.phase = "ROLL";
+  // Set phase to JAIL if the next player is in jail, otherwise ROLL
+  const nextPlayer = state.playerState[orderedPlayers[next]];
+  state.phase = nextPlayer.inJail ? "JAIL" : "ROLL";
   state.dice = null;
   state.doublesCount = 0; // Reset doubles count on turn change
 }
