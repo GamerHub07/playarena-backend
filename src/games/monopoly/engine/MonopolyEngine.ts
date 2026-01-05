@@ -61,7 +61,8 @@ export class MonopolyEngine extends GameEngine<MonopolyGameState> {
 
     switch (action) {
       case "ROLL_DICE": {
-        if (this.state.phase !== "ROLL") {
+        // Allow rolling from ROLL phase (normal) or JAIL phase (trying to roll doubles)
+        if (this.state.phase !== "ROLL" && this.state.phase !== "JAIL") {
           throw new Error("Invalid phase");
         }
 
@@ -131,6 +132,9 @@ export class MonopolyEngine extends GameEngine<MonopolyGameState> {
       }
 
       case "PAY_JAIL_FINE": {
+        if (this.state.phase !== "JAIL") {
+          throw new Error("Not in jail phase");
+        }
         if (!player.inJail) {
           throw new Error("Not in jail");
         }
@@ -142,6 +146,7 @@ export class MonopolyEngine extends GameEngine<MonopolyGameState> {
         player.inJail = false;
         player.jailTurns = 0;
         // Now player can roll normally
+        this.state.phase = "ROLL";
         break;
       }
 
