@@ -28,6 +28,14 @@ export class RoomHandler extends BaseHandler {
             )
         );
 
+        // Theme change (host only)
+        socket.on(
+            SOCKET_EVENTS.ROOM_THEME,
+            this.wrapHandler(socket, SOCKET_EVENTS.ROOM_THEME, (payload: { themeId: string }) =>
+                this.handleThemeChange(socket, payload)
+            )
+        );
+
         // Handle disconnect
         socket.on(SOCKET_EVENTS.DISCONNECT, async () => {
             await this.handleDisconnect(socket);
@@ -103,4 +111,40 @@ export class RoomHandler extends BaseHandler {
             console.error('Disconnect handler error:', error);
         }
     }
+
+    private async handleThemeChange(socket: Socket, payload: { themeId: string }): Promise<void> {
+        const { roomCode, sessionId } = this.getSocketData(socket);
+        const { themeId } = payload;
+
+        if (!roomCode || !sessionId) {
+            this.emitError(socket, 'Not in a room');
+            return;
+        }
+
+        try {
+            const room = await Room.findOne({ code: roomCode });
+            if (!room) {
+                this.emitError(socket, 'Room not found');
+                return;
+            }
+
+            // Check if the sender is the host
+            const player = room.players.find(p => p.sessionId === sessionId);
+            if (!player || !player.isHost) {
+                this.emitError(socket, 'Only the host can change the theme');
+                return;
+            }
+
+            // Broadcast theme change to all players in the room
+            this.emitToRoom(roomCode, SOCKET_EVENTS.ROOM_THEME, {
+                themeId,
+            });
+
+            console.log(`🎨 Theme changed to ${themeId} in room ${roomCode} by host`);
+        } catch (error) {
+            console.error('Theme change handler error:', error);
+            this.emitError(socket, 'Failed to change theme');
+        }
+    }
 }
+

@@ -1,8 +1,7 @@
 /**
  * Snake & Ladder Game Module
  * 
- * ⚠️ NOT PRODUCTION READY ⚠️
- * This game is not yet exposed via socket handlers.
+ * Production-ready exports for Snake & Ladder game.
  */
 
 export { SnakeLadderEngine } from './SnakeLadderEngine';
