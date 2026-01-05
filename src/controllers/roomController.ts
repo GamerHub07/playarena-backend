@@ -56,7 +56,7 @@ export const createRoom = async (req: Request, res: Response): Promise<void> => 
             code,
             gameType,
             players: [player],
-            maxPlayers: gameType === 'ludo' ? 4 : gameType === 'monopoly' ? 6 : gameType === 'snake-ladder' ? 4 : 4,
+            maxPlayers: gameType === 'ludo' ? 4 : gameType === 'monopoly' ? 6 : gameType === 'snake-ladder' ? 4 : gameType === 'poker' ? 8 : 4,
             minPlayers: 2,
         });
 
@@ -101,6 +101,27 @@ export const getRoom = async (req: Request, res: Response): Promise<void> => {
                 status: room.status,
                 maxPlayers: room.maxPlayers,
                 minPlayers: room.minPlayers,
+                // MASKED GAME STATE
+                gameState: (() => {
+                    if (!room.gameState || room.gameType !== 'poker') return room.gameState;
+
+                    // We need the requester's session ID to know who to unmask.
+                    // This might come from headers if your auth middleware attaches it,
+                    // or we might have to be conservative and mask everything if not sure.
+                    // For now, let's look for a header 'x-session-id' or query param.
+                    // If not found, we mask ALL hands (observer mode).
+                    const requesterSessionId = req.headers['x-session-id'] || req.query.sessionId;
+
+                    const pState = JSON.parse(JSON.stringify(room.gameState));
+                    if (pState.players && typeof pState.players === 'object') {
+                        Object.values(pState.players).forEach((player: any) => {
+                            if (player.sessionId !== requesterSessionId && pState.currentPhase !== 'showdown') {
+                                player.hand = [];
+                            }
+                        });
+                    }
+                    return pState;
+                })(),
             },
         });
     } catch (error) {
