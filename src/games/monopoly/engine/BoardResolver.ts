@@ -3,6 +3,7 @@ import { JAIL_INDEX } from "../data/board";
 import { drawChanceCard, drawCommunityChestCard, executeCard } from "./CardResolver";
 import { checkAndSetDebtPhase } from "./BalanceResolver";
 import { calculateRent, calculateRailroadRent, calculateUtilityRent } from "./RentCalculator";
+import { logRentPaid, logTaxPaid } from "./GameLogger";
 
 /**
  * Check if doubles were rolled
@@ -38,6 +39,7 @@ export function resolveSquare(
         const rent = calculateRent(state, square, square.owner);
         player.cash -= rent;
         state.playerState[square.owner].cash += rent;
+        logRentPaid(state, playerId, square.owner, rent, square.name || square.id);
         checkAndSetDebtPhase(state, playerId, getNextPhase(state));
       } else {
         state.phase = getNextPhase(state);
@@ -52,6 +54,7 @@ export function resolveSquare(
         const rent = calculateRailroadRent(state, square.owner);
         player.cash -= rent;
         state.playerState[square.owner].cash += rent;
+        logRentPaid(state, playerId, square.owner, rent, square.name || square.id);
         checkAndSetDebtPhase(state, playerId, getNextPhase(state));
       } else {
         state.phase = getNextPhase(state);
@@ -66,6 +69,7 @@ export function resolveSquare(
         const rent = calculateUtilityRent(state, square.owner);
         player.cash -= rent;
         state.playerState[square.owner].cash += rent;
+        logRentPaid(state, playerId, square.owner, rent, square.name || square.id);
         checkAndSetDebtPhase(state, playerId, getNextPhase(state));
       } else {
         state.phase = getNextPhase(state);
@@ -73,7 +77,9 @@ export function resolveSquare(
       break;
 
     case "TAX":
-      player.cash -= square.amount ?? 0;
+      const taxAmount = square.amount ?? 0;
+      player.cash -= taxAmount;
+      logTaxPaid(state, playerId, taxAmount, square.name || 'Tax');
       checkAndSetDebtPhase(state, playerId, getNextPhase(state));
       break;
 
@@ -85,10 +91,13 @@ export function resolveSquare(
 
     case "CHANCE": {
       const card = drawChanceCard();
+      const positionBefore = player.position;
       executeCard(state, playerId, card, orderedPlayers);
-      
       if (player.inJail) {
         state.phase = "END_TURN";
+      } else if (card.action.type === "MOVE_TO" || card.action.type === "MOVE_BACK") {
+        // Card moved the player - resolve the new square (e.g., offer to buy property)
+        resolveSquare(state, playerId, orderedPlayers);
       } else {
         checkAndSetDebtPhase(state, playerId, getNextPhase(state));
       }
@@ -97,10 +106,14 @@ export function resolveSquare(
 
     case "COMMUNITY_CHEST": {
       const card = drawCommunityChestCard();
+      const positionBefore = player.position;
       executeCard(state, playerId, card, orderedPlayers);
       
       if (player.inJail) {
         state.phase = "END_TURN";
+      } else if (card.action.type === "MOVE_TO" || card.action.type === "MOVE_BACK") {
+        // Card moved the player - resolve the new square (e.g., offer to buy property)
+        resolveSquare(state, playerId, orderedPlayers);
       } else {
         checkAndSetDebtPhase(state, playerId, getNextPhase(state));
       }
