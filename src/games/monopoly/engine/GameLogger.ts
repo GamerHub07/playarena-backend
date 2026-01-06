@@ -21,8 +21,8 @@ export function addLog(
   }
 ): void {
   const player = state.playerState[playerId];
-  const relatedPlayer = options?.relatedPlayerId
-    ? state.playerState[options.relatedPlayerId]
+  const relatedPlayer = options?.relatedPlayerId 
+    ? state.playerState[options.relatedPlayerId] 
     : undefined;
 
   const entry: GameLogEntry = {

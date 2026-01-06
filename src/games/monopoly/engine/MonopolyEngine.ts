@@ -60,7 +60,8 @@ export class MonopolyEngine extends GameEngine<MonopolyGameState> {
 
     switch (action) {
       case "ROLL_DICE": {
-        if (this.state.phase !== "ROLL") {
+        // Allow rolling from ROLL phase (normal) or JAIL phase (trying to roll doubles)
+        if (this.state.phase !== "ROLL" && this.state.phase !== "JAIL") {
           throw new Error("Invalid phase");
         }
 
@@ -68,6 +69,17 @@ export class MonopolyEngine extends GameEngine<MonopolyGameState> {
         const d2 = Math.ceil(Math.random() * 6);
         this.state.dice = [d1, d2];
         const isDoubles = d1 === d2;
+        // Helper to move player and collect $200 if passing GO
+        const movePlayer = (spaces: number) => {
+          const oldPosition = player.position;
+          const newPosition = (oldPosition + spaces) % this.state.board.length;
+          // Passed GO if we wrapped around (new position < old position means we crossed position 0)
+          if (newPosition < oldPosition) {
+            player.cash += 200;
+            logPassGo(this.state, playerId);
+          }
+          player.position = newPosition;
+        };
 
         // Helper to move player and collect $200 if passing GO
         const movePlayer = (spaces: number) => {
@@ -85,7 +97,6 @@ export class MonopolyEngine extends GameEngine<MonopolyGameState> {
         // Handle jail
         if (player.inJail) {
           player.jailTurns++;
-
           // Rolled doubles - get out of jail free
           if (isDoubles) {
             player.inJail = false;
@@ -112,7 +123,6 @@ export class MonopolyEngine extends GameEngine<MonopolyGameState> {
           // Track consecutive doubles
           if (isDoubles) {
             this.state.doublesCount++;
-
             // 3 consecutive doubles = go to jail!
             if (this.state.doublesCount >= 3) {
               const JAIL_INDEX = this.state.board.findIndex(s => s.type === "JAIL");
@@ -125,7 +135,6 @@ export class MonopolyEngine extends GameEngine<MonopolyGameState> {
           } else {
             this.state.doublesCount = 0;
           }
-
           // Normal movement
           movePlayer(d1 + d2);
           this.state.phase = "RESOLVE";
@@ -135,6 +144,9 @@ export class MonopolyEngine extends GameEngine<MonopolyGameState> {
       }
 
       case "PAY_JAIL_FINE": {
+        if (this.state.phase !== "JAIL") {
+          throw new Error("Not in jail phase");
+        }
         if (!player.inJail) {
           throw new Error("Not in jail");
         }
@@ -146,6 +158,7 @@ export class MonopolyEngine extends GameEngine<MonopolyGameState> {
         player.inJail = false;
         player.jailTurns = 0;
         // Now player can roll normally
+        this.state.phase = "ROLL";
         break;
       }
 
@@ -175,7 +188,6 @@ export class MonopolyEngine extends GameEngine<MonopolyGameState> {
         logPropertyBought(this.state, playerId, square.price!, square.name || square.id);
         square.owner = playerId;
         player.properties.push(square.id);
-
         // Check for doubles - player gets another roll
         const isDoublesRoll = this.state.dice && this.state.dice[0] === this.state.dice[1];
         this.state.phase = isDoublesRoll ? "ROLL" : "END_TURN";
@@ -188,7 +200,6 @@ export class MonopolyEngine extends GameEngine<MonopolyGameState> {
         if (propIndex === -1) {
           throw new Error("Player does not own this property");
         }
-
         const square = this.state.board.find(s => s.id === propertyId);
         if (!square) {
           throw new Error("Property not found");
@@ -227,7 +238,6 @@ export class MonopolyEngine extends GameEngine<MonopolyGameState> {
         this.state.phase = isDoublesDecline ? "ROLL" : "END_TURN";
         break;
       }
-
       case "BUILD_HOUSE": {
         const { propertyId } = payload as { propertyId: string };
         const square = this.state.board.find(s => s.id === propertyId);
@@ -285,7 +295,6 @@ export class MonopolyEngine extends GameEngine<MonopolyGameState> {
         // Don't change phase - player can keep building or take other actions
         break;
       }
-
       case "END_TURN":
         advanceTurn(this.state, orderedPlayers);
         break;

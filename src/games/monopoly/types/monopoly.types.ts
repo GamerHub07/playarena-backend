@@ -1,4 +1,4 @@
-export type TurnPhase = "ROLL" | "RESOLVE" | "DECISION" | "END_TURN" | "DEBT";
+export type TurnPhase = "ROLL" | "RESOLVE" | "DECISION" | "END_TURN" | "DEBT" | "JAIL";
 
 export interface MonopolyPlayerState {
   sessionId: string;
@@ -32,7 +32,7 @@ export interface DrawnCard {
   text: string;
 }
 
-export type GameLogType =
+export type GameLogType = 
   | 'PASS_GO'           // Collected $200 passing GO
   | 'RENT_PAID'         // Paid rent to another player
   | 'RENT_RECEIVED'     // Received rent from another player
@@ -69,4 +69,3 @@ export interface MonopolyGameState {
   doublesCount: number; // Track consecutive doubles (3 = jail)
   gameLog: GameLogEntry[]; // Transaction log for money flow
 }
-

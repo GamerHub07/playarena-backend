@@ -93,7 +93,6 @@ export function resolveSquare(
       const card = drawChanceCard();
       const positionBefore = player.position;
       executeCard(state, playerId, card, orderedPlayers);
-
       if (player.inJail) {
         state.phase = "END_TURN";
       } else if (card.action.type === "MOVE_TO" || card.action.type === "MOVE_BACK") {

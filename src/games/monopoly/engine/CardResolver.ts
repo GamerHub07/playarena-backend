@@ -2,6 +2,7 @@ import { MonopolyGameState, MonopolyPlayerState } from "../types/monopoly.types"
 import { Card, CardAction, CHANCE_CARDS, COMMUNITY_CHEST_CARDS, JAIL_INDEX } from "../data/cards";
 import { logCardCollect, logCardPay, logCardTransfer, logPassGo } from "./GameLogger";
 
+
 // Shuffled card decks (in memory per game)
 let chanceIndex = 0;
 let communityChestIndex = 0;
@@ -143,6 +144,7 @@ export function executeCard(
         }
       }
       break;
+
 
     case "REPAIRS": {
       // Calculate repair costs based on houses/hotels
