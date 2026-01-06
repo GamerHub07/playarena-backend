@@ -63,7 +63,7 @@ export function logRentPaid(
     relatedPlayerId: ownerId,
     propertyName,
   });
-  
+
   const payerName = state.playerState[payerId]?.username || 'Unknown';
   addLog(state, 'RENT_RECEIVED', ownerId, amount, `Received ₹${amount} rent from ${payerName} for ${propertyName}`, {
     relatedPlayerId: payerId,
@@ -154,11 +154,11 @@ export function logCardTransfer(
 ): void {
   const toPlayerName = state.playerState[toPlayerId]?.username || 'Unknown';
   const fromPlayerName = state.playerState[fromPlayerId]?.username || 'Unknown';
-  
+
   addLog(state, 'CARD_TRANSFER', fromPlayerId, amount, `Paid ₹${amount} to ${toPlayerName}: ${description}`, {
     relatedPlayerId: toPlayerId,
   });
-  
+
   addLog(state, 'CARD_TRANSFER', toPlayerId, amount, `Received ₹${amount} from ${fromPlayerName}: ${description}`, {
     relatedPlayerId: fromPlayerId,
   });
