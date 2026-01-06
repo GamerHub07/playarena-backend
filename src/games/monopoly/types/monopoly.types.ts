@@ -32,6 +32,33 @@ export interface DrawnCard {
   text: string;
 }
 
+export type GameLogType =
+  | 'PASS_GO'           // Collected $200 passing GO
+  | 'RENT_PAID'         // Paid rent to another player
+  | 'RENT_RECEIVED'     // Received rent from another player
+  | 'TAX_PAID'          // Paid tax
+  | 'PROPERTY_BOUGHT'   // Bought a property
+  | 'PROPERTY_SOLD'     // Sold a property (mortgage)
+  | 'JAIL_FINE'         // Paid jail fine
+  | 'CARD_COLLECT'      // Collected money from card
+  | 'CARD_PAY'          // Paid money from card
+  | 'CARD_TRANSFER'     // Transferred money (from/to other players via card)
+  | 'HOUSE_BUILT'       // Built a house
+  | 'HOTEL_BUILT';      // Built a hotel
+
+export interface GameLogEntry {
+  id: string;
+  type: GameLogType;
+  playerId: string;
+  playerName: string;
+  amount: number;
+  description: string;
+  timestamp: number;
+  relatedPlayerId?: string;    // For rent/transfers - the other player
+  relatedPlayerName?: string;
+  propertyName?: string;       // For property-related logs
+}
+
 export interface MonopolyGameState {
   currentTurnIndex: number;
   phase: TurnPhase;
@@ -40,5 +67,6 @@ export interface MonopolyGameState {
   playerState: Record<string, MonopolyPlayerState>;
   lastCard?: DrawnCard | null;
   doublesCount: number; // Track consecutive doubles (3 = jail)
+  gameLog: GameLogEntry[]; // Transaction log for money flow
 }
 

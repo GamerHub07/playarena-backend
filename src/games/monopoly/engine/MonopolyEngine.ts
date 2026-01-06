@@ -7,6 +7,7 @@ import {
 import { assertPlayersTurn } from "./RuleValidator";
 import { resolveSquare } from "./BoardResolver";
 import { advanceTurn } from "./TurnManager";
+import { logPassGo, logJailFine, logPropertyBought, logPropertySold, logHouseBuilt, logHotelBuilt } from "./GameLogger";
 
 export class MonopolyEngine extends GameEngine<MonopolyGameState> {
   getGameType(): string {
@@ -29,6 +30,7 @@ export class MonopolyEngine extends GameEngine<MonopolyGameState> {
       board: JSON.parse(JSON.stringify(BOARD)),
       playerState: {},
       doublesCount: 0,
+      gameLog: [],
     };
   }
 
@@ -67,6 +69,19 @@ export class MonopolyEngine extends GameEngine<MonopolyGameState> {
         this.state.dice = [d1, d2];
         const isDoubles = d1 === d2;
 
+        // Helper to move player and collect $200 if passing GO
+        const movePlayer = (spaces: number) => {
+          const oldPosition = player.position;
+          const newPosition = (oldPosition + spaces) % this.state.board.length;
+          // Passed GO if we wrapped around (new position < old position means we crossed position 0)
+          if (newPosition < oldPosition) {
+            player.cash += 200;
+            logPassGo(this.state, playerId);
+          }
+          player.position = newPosition;
+        };
+
+
         // Handle jail
         if (player.inJail) {
           player.jailTurns++;
@@ -76,16 +91,17 @@ export class MonopolyEngine extends GameEngine<MonopolyGameState> {
             player.inJail = false;
             player.jailTurns = 0;
             this.state.doublesCount = 1; // Count this as first double
-            player.position = (player.position + d1 + d2) % this.state.board.length;
+            movePlayer(d1 + d2);
             this.state.phase = "RESOLVE";
             resolveSquare(this.state, playerId, orderedPlayers);
           } else if (player.jailTurns >= 3) {
             // After 3 turns, must pay $50 and move
             player.cash -= 50;
+            logJailFine(this.state, playerId, 50);
             player.inJail = false;
             player.jailTurns = 0;
             this.state.doublesCount = 0;
-            player.position = (player.position + d1 + d2) % this.state.board.length;
+            movePlayer(d1 + d2);
             this.state.phase = "RESOLVE";
             resolveSquare(this.state, playerId, orderedPlayers);
           } else {
@@ -111,7 +127,7 @@ export class MonopolyEngine extends GameEngine<MonopolyGameState> {
           }
 
           // Normal movement
-          player.position = (player.position + d1 + d2) % this.state.board.length;
+          movePlayer(d1 + d2);
           this.state.phase = "RESOLVE";
           resolveSquare(this.state, playerId, orderedPlayers);
         }
@@ -126,6 +142,7 @@ export class MonopolyEngine extends GameEngine<MonopolyGameState> {
           throw new Error("Insufficient funds");
         }
         player.cash -= 50;
+        logJailFine(this.state, playerId, 50);
         player.inJail = false;
         player.jailTurns = 0;
         // Now player can roll normally
@@ -155,6 +172,7 @@ export class MonopolyEngine extends GameEngine<MonopolyGameState> {
         }
 
         player.cash -= square.price!;
+        logPropertyBought(this.state, playerId, square.price!, square.name || square.id);
         square.owner = playerId;
         player.properties.push(square.id);
 
@@ -177,7 +195,9 @@ export class MonopolyEngine extends GameEngine<MonopolyGameState> {
         }
 
         // Sell for half price
-        player.cash += Math.floor((square.price ?? 0) / 2);
+        const salePrice = Math.floor((square.price ?? 0) / 2);
+        player.cash += salePrice;
+        logPropertySold(this.state, playerId, salePrice, square.name || square.id);
         player.properties.splice(propIndex, 1);
         square.owner = null;
 
@@ -231,6 +251,7 @@ export class MonopolyEngine extends GameEngine<MonopolyGameState> {
         const cost = square.houseCost ?? 0;
         player.cash -= cost;
         square.houses = (square.houses ?? 0) + 1;
+        logHouseBuilt(this.state, playerId, cost, square.name || square.id, square.houses);
 
         // Don't change phase - player can keep building or take other actions
         break;
@@ -259,6 +280,7 @@ export class MonopolyEngine extends GameEngine<MonopolyGameState> {
         const hotelCost = hotelSquare.houseCost ?? 0;
         player.cash -= hotelCost;
         hotelSquare.houses = 5; // 5 = hotel
+        logHotelBuilt(this.state, playerId, hotelCost, hotelSquare.name || hotelSquare.id);
 
         // Don't change phase - player can keep building or take other actions
         break;
