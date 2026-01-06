@@ -1,0 +1,51 @@
+# Dependencies
+node_modules/
+
+# Build outputs (we build inside Docker)
+dist/
+build/
+
+# Environment files (should be passed at runtime)
+.env
+.env.*
+.env.local
+.env.*.local
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Testing
+coverage/
+__tests__/
+*.test.ts
+*.spec.ts
+
+# Documentation (not needed in container)
+*.md
+!README.md
+
+# Docker files (no need to copy into container)
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# Misc
+*.tgz
+.cache
+.npm
