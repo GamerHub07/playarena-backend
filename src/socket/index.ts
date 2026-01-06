@@ -7,7 +7,6 @@ import { Server as SocketServer, Socket } from 'socket.io';
 import { Server as HttpServer } from 'http';
 import { socketManager } from './SocketManager';
 import { RoomHandler, LudoHandler, MonopolyHandler, SnakeLadderHandler } from './handlers';
-import { PokerHandler } from './handlers/games/PokerHandler';
 import { featureFlags } from '../config/featureFlags';
 
 import { SOCKET_EVENTS } from './events';
@@ -49,12 +48,6 @@ function registerHandlers(socket: Socket): void {
     const monopolyHandler = new MonopolyHandler();
     monopolyHandler.register(socket);
 
-
-    // Poker game events
-    if (featureFlags.ENABLE_POKER) {
-        const pokerHandler = new PokerHandler();
-        pokerHandler.register(socket);
-    }
 
 
     // Add more game handlers here as needed:
