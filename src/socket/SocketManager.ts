@@ -6,9 +6,8 @@
 import { Server as SocketServer, Socket } from 'socket.io';
 import { Server as HttpServer } from 'http';
 import { LudoEngine } from '../games/ludo/LudoEngine';
-import { PokerEngine } from '../games/poker/PokerEngine';
 
-export type GameEngineInstance = LudoEngine | PokerEngine; // Extend with other game engines as needed
+export type GameEngineInstance = LudoEngine; // Extend with other game engines as needed
 
 interface RoomConnection {
     sockets: Set<string>;

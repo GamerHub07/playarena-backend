@@ -81,18 +81,6 @@ export class MonopolyEngine extends GameEngine<MonopolyGameState> {
           player.position = newPosition;
         };
 
-        // Helper to move player and collect $200 if passing GO
-        const movePlayer = (spaces: number) => {
-          const oldPosition = player.position;
-          const newPosition = (oldPosition + spaces) % this.state.board.length;
-          // Passed GO if we wrapped around (new position < old position means we crossed position 0)
-          if (newPosition < oldPosition) {
-            player.cash += 200;
-            logPassGo(this.state, playerId);
-          }
-          player.position = newPosition;
-        };
-
 
         // Handle jail
         if (player.inJail) {
