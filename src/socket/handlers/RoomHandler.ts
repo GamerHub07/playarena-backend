@@ -9,6 +9,7 @@ import { socketManager } from '../SocketManager';
 import { SOCKET_EVENTS } from '../events';
 import { JoinRoomPayload } from '../types';
 import Room from '../../models/Room';
+import { gameStore } from '../../services/gameStore';
 
 export class RoomHandler extends BaseHandler {
     register(socket: Socket): void {
@@ -73,6 +74,20 @@ export class RoomHandler extends BaseHandler {
             players: room.players,
             status: room.status,
         });
+
+        // If game is in progress, send current game state to the rejoining player
+        if (room.status === 'playing') {
+            const engine = gameStore.getGame(code);
+            if (engine) {
+                // Send game state only to the rejoining player
+                socket.emit(SOCKET_EVENTS.GAME_STATE, {
+                    state: engine.getState(),
+                    reconnected: true, // Flag to indicate this is a reconnection
+                });
+
+                console.log(`🔄 ${username} reconnected to in-progress game in room ${code}`);
+            }
+        }
 
         console.log(`👤 ${username} joined room ${code}`);
     }
