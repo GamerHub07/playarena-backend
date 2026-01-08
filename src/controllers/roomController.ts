@@ -56,7 +56,7 @@ export const createRoom = async (req: Request, res: Response): Promise<void> => 
             code,
             gameType,
             players: [player],
-            maxPlayers: gameType === 'ludo' ? 4 : gameType === 'monopoly' ? 6 : gameType === 'snake-ladder' ? 4 : gameType === 'poker' ? 8 : 4,
+            maxPlayers: gameType === 'chess' ? 2 : gameType === 'ludo' ? 4 : gameType === 'monopoly' ? 6 : gameType === 'snake-ladder' ? 4 : gameType === 'poker' ? 8 : 4,
             minPlayers: 2,
         });
 

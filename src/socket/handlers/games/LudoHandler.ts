@@ -106,7 +106,7 @@ export class LudoHandler extends BaseHandler {
 
         // Verify this is a Ludo game
         if (engine.getGameType() !== 'ludo') {
-            return; 
+            return;
         }
 
         const sessionId = socket.data.sessionId;
