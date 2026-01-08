@@ -17,21 +17,24 @@ import { GameEngine, SerializedGame } from '../games/base/GameEngine';
 import { LudoEngine } from '../games/ludo/LudoEngine';
 import { SnakeLadderEngine } from '../games/snake-ladder/SnakeLadderEngine';
 import { MonopolyEngine } from '../games/monopoly';
+import { ChessEngine } from '../games/chess';
+import { PokerEngine } from '../games/poker';
 import { featureFlags } from '../config/featureFlags';
 
 // Game type registry - add new games here
-export type GameType = 'ludo' | 'snake-ladder' | 'monopoly';
+export type GameType = 'ludo' | 'snake-ladder' | 'monopoly' | 'chess' | 'poker';
 
 
 // Factory function type for creating game engines
 type GameEngineFactory = (roomCode: string) => GameEngine;
 
 // Registry of game factories
-// ⚠️ Snake & Ladder is implemented but NOT exposed via socket handlers yet
 const gameFactories: Record<GameType, GameEngineFactory> = {
     'ludo': (roomCode) => new LudoEngine(roomCode),
     'snake-ladder': (roomCode) => new SnakeLadderEngine(roomCode),
     'monopoly': (roomCode) => new MonopolyEngine(roomCode),
+    'chess': (roomCode) => new ChessEngine(roomCode),
+    'poker': (roomCode) => new PokerEngine(roomCode),
 };
 
 

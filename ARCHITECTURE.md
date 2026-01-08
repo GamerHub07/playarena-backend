@@ -3,7 +3,7 @@
 ## Overview
 
 This backend uses a **modular, scalable architecture** designed for:
-- Multiple game types (Ludo, Snake & Ladder, future games)
+- Multiple game types (Ludo, Snake & Ladder, Monopoly, Chess)
 - Real-time WebSocket communication
 - Horizontal scaling readiness (Redis-ready)
 - Zero-downtime deployments via feature flags
@@ -21,43 +21,43 @@ This backend uses a **modular, scalable architecture** designed for:
                            ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │                      SOCKET LAYER                                │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐              │
-│  │ RoomHandler │  │ LudoHandler │  │ Future...   │              │
-│  └─────────────┘  └─────────────┘  └─────────────┘              │
-│         │                │                                       │
-│         └────────────────┴───────────────┐                      │
+│  ┌───────────┐ ┌───────────┐ ┌───────────┐ ┌───────────┐        │
+│  │RoomHandler│ │LudoHandler│ │ChessHndlr │ │Monopoly...│        │
+│  └───────────┘ └───────────┘ └───────────┘ └───────────┘        │
+│         │            │              │             │              │
+│         └────────────┴──────────────┴─────────────┘              │
 │                                          ▼                       │
-│  ┌─────────────────────────────────────────────────────────┐    │
-│  │              SocketManager (connections, rooms)          │    │
-│  └─────────────────────────────────────────────────────────┘    │
+│  ┌─────────────────────────────────────────────────────────────┐ │
+│  │              SocketManager (connections, rooms)             │ │
+│  └─────────────────────────────────────────────────────────────┘ │
 └──────────────────────────┬──────────────────────────────────────┘
                            │
                            ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │                     SERVICE LAYER                                │
-│  ┌─────────────────────────────────────────────────────────┐    │
-│  │                   GameStore                              │    │
-│  │   - createGame(type, roomCode)                          │    │
-│  │   - getGame(roomCode)                                   │    │
-│  │   - deleteGame(roomCode)                                │    │
-│  │   - serialize/restore (Redis-ready)                     │    │
-│  └─────────────────────────────────────────────────────────┘    │
+│  ┌─────────────────────────────────────────────────────────────┐ │
+│  │                   GameStore                                 │ │
+│  │   - createGame(type, roomCode)                              │ │
+│  │   - getGame(roomCode)                                       │ │
+│  │   - deleteGame(roomCode)                                    │ │
+│  │   - serialize/restore (Redis-ready)                         │ │
+│  └─────────────────────────────────────────────────────────────┘ │
 └──────────────────────────┬──────────────────────────────────────┘
                            │
                            ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │                      GAME LAYER                                  │
-│  ┌─────────────────────────────────────────────────────────┐    │
-│  │               GameEngine (Abstract Base)                 │    │
-│  │   - getGameType(), getState(), handleAction()           │    │
-│  │   - serialize(), restore()                              │    │
-│  └─────────────────────────────────────────────────────────┘    │
-│         ▲                           ▲                            │
-│         │                           │                            │
-│  ┌──────┴──────┐            ┌───────┴───────┐                   │
-│  │ LudoEngine  │            │SnakeLadderEng │                   │
-│  │  (LIVE)     │            │  (DISABLED)   │                   │
-│  └─────────────┘            └───────────────┘                   │
+│  ┌─────────────────────────────────────────────────────────────┐ │
+│  │               GameEngine (Abstract Base)                    │ │
+│  │   - getGameType(), getState(), handleAction()               │ │
+│  │   - serialize(), restore()                                  │ │
+│  └─────────────────────────────────────────────────────────────┘ │
+│         ▲              ▲              ▲              ▲           │
+│         │              │              │              │           │
+│  ┌──────┴────┐  ┌──────┴────┐  ┌──────┴────┐  ┌──────┴────┐     │
+│  │LudoEngine │  │SnakeLadder│  │ChessEngine│  │Monopoly   │     │
+│  │  (LIVE)   │  │  (LIVE)   │  │  (LIVE)   │  │  (LIVE)   │     │
+│  └───────────┘  └───────────┘  └───────────┘  └───────────┘     │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -78,9 +78,16 @@ backend/src/
 │   │   ├── LudoEngine.ts   # Ludo game logic
 │   │   ├── LudoTypes.ts    # Type definitions
 │   │   └── LudoBoardLayout.ts
-│   └── snake-ladder/       # NOT YET EXPOSED
-│       ├── SnakeLadderEngine.ts
-│       └── SnakeLadderTypes.ts
+│   ├── snake-ladder/
+│   │   ├── SnakeLadderEngine.ts
+│   │   └── SnakeLadderTypes.ts
+│   ├── chess/
+│   │   ├── ChessEngine.ts  # Full chess rules + check/checkmate
+│   │   ├── ChessTypes.ts   # Pieces, board, moves
+│   │   └── index.ts
+│   └── monopoly/
+│       ├── MonopolyEngine.ts
+│       └── ...
 │
 ├── services/
 │   ├── gameStore.ts        # Centralized game registry
@@ -95,7 +102,10 @@ backend/src/
 │   │   ├── BaseHandler.ts  # Abstract handler
 │   │   ├── RoomHandler.ts  # Room lifecycle
 │   │   └── games/
-│   │       └── LudoHandler.ts
+│   │       ├── LudoHandler.ts
+│   │       ├── SnakeLadderHandler.ts
+│   │       ├── ChessHandler.ts
+│   │       └── MonopolyHandler.ts
 │   └── types/
 │       └── socketTypes.ts  # Payload types
 │

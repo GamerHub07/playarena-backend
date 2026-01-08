@@ -42,6 +42,10 @@ playarena-backend/
     │   │   │   └── TurnManager.ts
     │   │   └── types/
     │   │       └── monopoly.types.ts
+    │   ├── chess/            # Chess game implementation
+    │   │   ├── index.ts
+    │   │   ├── ChessEngine.ts
+    │   │   └── ChessTypes.ts
     │   └── snake-ladder/     # Snake and Ladder game implementation
     │       ├── index.ts
     │       ├── SnakeLadderEngine.ts
@@ -75,7 +79,10 @@ playarena-backend/
     │   │   ├── RoomHandler.ts
     │   │   └── games/
     │   │       ├── index.ts
-    │   │       └── LudoHandler.ts
+    │   │       ├── LudoHandler.ts
+    │   │       ├── SnakeLadderHandler.ts
+    │   │       ├── MonopolyHandler.ts
+    │   │       └── ChessHandler.ts
     │   ├── middleware/
     │   │   ├── errorHandler.ts
     │   │   └── index.ts
