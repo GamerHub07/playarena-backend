@@ -86,6 +86,7 @@ export function resolveSquare(
     case "GO_TO_JAIL":
       player.position = JAIL_INDEX;
       player.inJail = true;
+      player.jailTurns = 0; // Reset jail turns
       state.phase = "END_TURN";
       break;
 
