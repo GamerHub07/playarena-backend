@@ -7,7 +7,7 @@ import {
 import { assertPlayersTurn } from "./RuleValidator";
 import { resolveSquare } from "./BoardResolver";
 import { advanceTurn } from "./TurnManager";
-import { logPassGo, logJailFine, logPropertyBought, logPropertySold, logHouseBuilt, logHotelBuilt } from "./GameLogger";
+import { logPassGo, logJailFine, logPropertyBought, logPropertySold, logHouseBuilt, logHotelBuilt, logJailStay, logJailRelease } from "./GameLogger";
 
 export class MonopolyEngine extends GameEngine<MonopolyGameState> {
   getGameType(): string {
@@ -31,6 +31,7 @@ export class MonopolyEngine extends GameEngine<MonopolyGameState> {
       playerState: {},
       doublesCount: 0,
       gameLog: [],
+      bankruptcyOrder: [],
     };
   }
 
@@ -90,6 +91,7 @@ export class MonopolyEngine extends GameEngine<MonopolyGameState> {
             player.inJail = false;
             player.jailTurns = 0;
             this.state.doublesCount = 1; // Count this as first double
+            logJailRelease(this.state, playerId, "rolled doubles");
             movePlayer(d1 + d2);
             this.state.phase = "RESOLVE";
             resolveSquare(this.state, playerId, orderedPlayers);
@@ -100,11 +102,13 @@ export class MonopolyEngine extends GameEngine<MonopolyGameState> {
             player.inJail = false;
             player.jailTurns = 0;
             this.state.doublesCount = 0;
+            logJailRelease(this.state, playerId, "paid fine after 3 turns");
             movePlayer(d1 + d2);
             this.state.phase = "RESOLVE";
             resolveSquare(this.state, playerId, orderedPlayers);
           } else {
             // Stay in jail, end turn
+            logJailStay(this.state, playerId);
             this.state.phase = "END_TURN";
           }
         } else {
@@ -116,6 +120,7 @@ export class MonopolyEngine extends GameEngine<MonopolyGameState> {
               const JAIL_INDEX = this.state.board.findIndex(s => s.type === "JAIL");
               player.position = JAIL_INDEX;
               player.inJail = true;
+              player.jailTurns = 0; // Reset jail turns
               this.state.doublesCount = 0;
               this.state.phase = "END_TURN";
               break;
@@ -160,6 +165,7 @@ export class MonopolyEngine extends GameEngine<MonopolyGameState> {
         player.hasGetOutOfJailCard = false;
         player.inJail = false;
         player.jailTurns = 0;
+        logJailRelease(this.state, playerId, "used card");
         break;
       }
 
@@ -286,6 +292,28 @@ export class MonopolyEngine extends GameEngine<MonopolyGameState> {
       case "END_TURN":
         advanceTurn(this.state, orderedPlayers);
         break;
+
+      case "BANKRUPT": {
+        player.bankrupt = true;
+        this.state.bankruptcyOrder.push(playerId);
+        player.cash = 0;
+        
+        // Return properties to bank
+        player.properties.forEach(propId => {
+          const square = this.state.board.find(s => s.id === propId);
+          if (square) {
+            square.owner = null;
+            square.houses = 0;
+          }
+        });
+        player.properties = [];
+
+        // If it was their turn, advance
+        if (this.state.currentTurnIndex === orderedPlayers.indexOf(playerId)) {
+           advanceTurn(this.state, orderedPlayers);
+        }
+        break;
+      }
 
       default:
         throw new Error("Unknown action");

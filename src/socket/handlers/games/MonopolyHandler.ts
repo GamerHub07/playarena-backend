@@ -122,19 +122,46 @@ export class MonopolyHandler extends BaseHandler {
             // Check for winner
             if (engine.isGameOver()) {
                 const players = engine.getPlayers();
+                const state = engine.getState();
                 const winnerIndex = engine.getWinner();
+                
+                const leaderboard: Array<{ position: number, username: string, sessionId: string, rank: number }> = [];
+                let rankCounter = 1;
+
+                // 1. Add Winner (Rank 1)
                 const winner = winnerIndex !== null ? {
                     position: winnerIndex,
                     username: players[winnerIndex]?.username,
                     sessionId: players[winnerIndex]?.sessionId,
                 } : null;
 
+                if (winner) {
+                     leaderboard.push({ ...winner, rank: rankCounter++ });
+                }
+
+                // 2. Add Bankrupt players (Last out = Rank 2, First out = Last Rank)
+                // bankruptcyOrder is [FirstOut, SecondOut... LastOut]
+                // We want to reverse it to get [LastOut, SecondOut... FirstOut]
+                const reversedBankruptcy = [...state.bankruptcyOrder].reverse();
+                
+                reversedBankruptcy.forEach(sid => {
+                    const pIndex = players.findIndex(p => p.sessionId === sid);
+                    if (pIndex !== -1) {
+                         leaderboard.push({
+                            position: pIndex,
+                            username: players[pIndex].username,
+                            sessionId: sid,
+                            rank: rankCounter++
+                         });
+                    }
+                });
+
                 await Room.updateOne({ code }, { status: 'finished' });
 
                 // Clean up game from store
                 gameStore.deleteGame(code);
 
-                this.emitToRoom(code, SOCKET_EVENTS.GAME_WINNER, { winner });
+                this.emitToRoom(code, SOCKET_EVENTS.GAME_WINNER, { winner, leaderboard });
 
                 console.log(`🏆 Monopoly game finished in room ${code}. Winner: ${winner?.username}`);
             }
