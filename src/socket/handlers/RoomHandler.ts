@@ -255,3 +255,4 @@ export class RoomHandler extends BaseHandler {
         this.emitToRoom(code, 'chat:message', chatMessage);
     }
 }
+
