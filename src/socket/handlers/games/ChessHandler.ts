@@ -10,9 +10,12 @@ import { BaseHandler } from '../BaseHandler';
 import { SOCKET_EVENTS } from '../../events';
 import { GameActionPayload, GameStartPayload } from '../../types';
 import { ChessEngine } from '../../../games/chess/ChessEngine';
-import { ChessMovePayload, positionToAlgebraic } from '../../../games/chess/ChessTypes';
+import { ChessMovePayload, positionToAlgebraic, TIME_CONTROL_PRESETS } from '../../../games/chess/ChessTypes';
 import Room from '../../../models/Room';
 import { gameStore } from '../../../services/gameStore';
+
+// Store timer intervals for each room
+const timerIntervals: Map<string, NodeJS.Timeout> = new Map();
 
 export class ChessHandler extends BaseHandler {
     register(socket: Socket): void {
@@ -83,6 +86,12 @@ export class ChessHandler extends BaseHandler {
         // Initialize game
         engine.handleAction(socket.data.sessionId, 'init', null);
 
+        // Set time control if provided (payload may have timeControlKey)
+        const timeControlKey = (payload as GameStartPayload & { timeControlKey?: string }).timeControlKey;
+        if (timeControlKey && TIME_CONTROL_PRESETS[timeControlKey]) {
+            engine.setTimeControl(timeControlKey);
+        }
+
         // Update room status
         room.status = 'playing';
         room.gameState = engine.getState() as unknown as Record<string, unknown>;
@@ -98,7 +107,12 @@ export class ChessHandler extends BaseHandler {
             validMoves,
         });
 
-        console.log(`♟️ Chess game started in room ${code}`);
+        // Start timer interval if time control is set
+        if (engine.getState().timeControl && engine.getState().timeControl!.type !== 'unlimited') {
+            this.startTimerInterval(code, engine);
+        }
+
+        console.log(`♟️ Chess game started in room ${code}${timeControlKey ? ` (${TIME_CONTROL_PRESETS[timeControlKey]?.name})` : ''}`);
     }
 
     private async handleGameAction(socket: Socket, payload: GameActionPayload): Promise<void> {
@@ -171,6 +185,9 @@ export class ChessHandler extends BaseHandler {
 
                 await Room.updateOne({ code }, { status: 'finished' });
 
+                // Clean up timer interval
+                this.stopTimerInterval(code);
+
                 // Clean up game from store
                 gameStore.deleteGame(code);
 
@@ -195,6 +212,78 @@ export class ChessHandler extends BaseHandler {
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Unknown error';
             this.emitError(socket, message);
+        }
+    }
+
+    /**
+     * Start timer interval to check for timeout and emit timer updates
+     */
+    private startTimerInterval(code: string, engine: ChessEngine): void {
+        // Clear any existing interval
+        this.stopTimerInterval(code);
+
+        const interval = setInterval(async () => {
+            // Check if game still exists
+            if (!gameStore.hasGame(code)) {
+                this.stopTimerInterval(code);
+                return;
+            }
+
+            // Check for timeout
+            const timedOutPlayer = engine.checkTimeout();
+            if (timedOutPlayer) {
+                const newState = engine.handleTimeout(timedOutPlayer);
+
+                // Emit game state update
+                this.emitToRoom(code, SOCKET_EVENTS.GAME_STATE, {
+                    state: newState,
+                    lastAction: { action: 'timeout', by: 'server' },
+                    validMoves: {},
+                });
+
+                // Emit winner
+                const winnerIndex = engine.getWinner();
+                const players = engine.getPlayers();
+                const winnerData = winnerIndex !== null ? {
+                    position: winnerIndex,
+                    username: players[winnerIndex].username,
+                    sessionId: players[winnerIndex].sessionId,
+                } : null;
+
+                this.emitToRoom(code, SOCKET_EVENTS.GAME_WINNER, {
+                    winner: winnerData,
+                    gameResult: newState.gameResult,
+                    isDraw: false,
+                });
+
+                // Update database and cleanup
+                await Room.updateOne({ code }, { status: 'finished' });
+                this.stopTimerInterval(code);
+                gameStore.deleteGame(code);
+
+                console.log(`♟️ ${timedOutPlayer === 'white' ? 'Black' : 'White'} wins by timeout in room ${code}`);
+                return;
+            }
+
+            // Emit timer update to all clients
+            this.emitToRoom(code, 'game:timer', {
+                whiteTimeMs: engine.getTimeRemaining('white'),
+                blackTimeMs: engine.getTimeRemaining('black'),
+                currentPlayer: engine.getState().currentPlayer,
+            });
+        }, 1000); // Check every second
+
+        timerIntervals.set(code, interval);
+    }
+
+    /**
+     * Stop timer interval for a room
+     */
+    private stopTimerInterval(code: string): void {
+        const interval = timerIntervals.get(code);
+        if (interval) {
+            clearInterval(interval);
+            timerIntervals.delete(code);
         }
     }
 

@@ -1,6 +1,6 @@
 /**
  * Room Handler
- * Handles room join/leave and connection management
+ * Handles room join/leave, connection management, and chat
  */
 
 import { Socket } from 'socket.io';
@@ -10,6 +10,18 @@ import { SOCKET_EVENTS } from '../events';
 import { JoinRoomPayload } from '../types';
 import Room from '../../models/Room';
 import { gameStore } from '../../services/gameStore';
+
+// In-memory chat history per room (limited to last 50 messages)
+interface ChatMessage {
+    id: string;
+    roomCode: string;
+    sessionId: string;
+    username: string;
+    message: string;
+    timestamp: number;
+}
+const chatHistory: Map<string, ChatMessage[]> = new Map();
+const MAX_CHAT_HISTORY = 50;
 
 export class RoomHandler extends BaseHandler {
     register(socket: Socket): void {
@@ -36,6 +48,15 @@ export class RoomHandler extends BaseHandler {
                 this.handleThemeChange(socket, payload)
             )
         );
+
+        // Chat handlers
+        socket.on('chat:join', this.wrapHandler(socket, 'chat:join', () =>
+            this.handleChatJoin(socket)
+        ));
+
+        socket.on('chat:send', this.wrapHandler(socket, 'chat:send', (payload: { roomCode: string; message: string }) =>
+            this.handleChatSend(socket, payload)
+        ));
 
         // Handle disconnect
         socket.on(SOCKET_EVENTS.DISCONNECT, async () => {
@@ -79,9 +100,33 @@ export class RoomHandler extends BaseHandler {
         if (room.status === 'playing') {
             const engine = gameStore.getGame(code);
             if (engine) {
-                // Send game state only to the rejoining player
+                // For poker games, use the masked state to hide opponent cards
+                // Also send availableActions so action buttons show correctly
+                const gameType = engine.getGameType();
+                let stateToSend: unknown;
+                let availableActions: string[] = [];
+
+                if (gameType === 'poker' && 'getMaskedStateForPlayer' in engine && 'getAvailableActions' in engine) {
+                    const pokerEngine = engine as unknown as {
+                        getMaskedStateForPlayer: (sid: string) => unknown;
+                        getAvailableActions: (idx: number) => string[];
+                        getState: () => { currentPlayerIndex: number; players: Record<number, { sessionId: string; position: number }> };
+                    };
+                    stateToSend = pokerEngine.getMaskedStateForPlayer(sessionId);
+
+                    // Find the player's position to get their available actions
+                    const state = pokerEngine.getState();
+                    const playerEntry = Object.values(state.players).find(p => p.sessionId === sessionId);
+                    if (playerEntry) {
+                        availableActions = pokerEngine.getAvailableActions(playerEntry.position);
+                    }
+                } else {
+                    stateToSend = engine.getState();
+                }
+
                 socket.emit(SOCKET_EVENTS.GAME_STATE, {
-                    state: engine.getState(),
+                    state: stateToSend,
+                    availableActions,
                     reconnected: true, // Flag to indicate this is a reconnection
                 });
 
@@ -161,5 +206,52 @@ export class RoomHandler extends BaseHandler {
             this.emitError(socket, 'Failed to change theme');
         }
     }
-}
 
+    private handleChatJoin(socket: Socket): void {
+        const { roomCode } = this.getSocketData(socket);
+        if (!roomCode) return;
+
+        // Send chat history to the socket
+        const history = chatHistory.get(roomCode) || [];
+        socket.emit('chat:history', history);
+    }
+
+    private handleChatSend(socket: Socket, payload: { roomCode: string; message: string }): void {
+        const { sessionId, username } = this.getSocketData(socket);
+        const { roomCode, message } = payload;
+        const code = roomCode.toUpperCase();
+
+        if (!sessionId || !username) {
+            this.emitError(socket, 'Not authenticated');
+            return;
+        }
+
+        const trimmedMessage = message.trim();
+        if (!trimmedMessage || trimmedMessage.length > 200) {
+            return; // Silently ignore empty or too long messages
+        }
+
+        // Create message
+        const chatMessage: ChatMessage = {
+            id: `${Date.now()}-${sessionId.substring(0, 8)}`,
+            roomCode: code,
+            sessionId,
+            username,
+            message: trimmedMessage,
+            timestamp: Date.now(),
+        };
+
+        // Store in history (keep last 50)
+        if (!chatHistory.has(code)) {
+            chatHistory.set(code, []);
+        }
+        const history = chatHistory.get(code)!;
+        history.push(chatMessage);
+        if (history.length > MAX_CHAT_HISTORY) {
+            history.shift(); // Remove oldest
+        }
+
+        // Broadcast to all in room
+        this.emitToRoom(code, 'chat:message', chatMessage);
+    }
+}

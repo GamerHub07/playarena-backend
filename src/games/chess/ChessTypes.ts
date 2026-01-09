@@ -58,6 +58,35 @@ export interface MoveResult {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// TIMER SYSTEM
+// ═══════════════════════════════════════════════════════════════
+
+export interface TimeControl {
+    type: 'bullet' | 'blitz' | 'rapid' | 'classical' | 'unlimited' | 'armageddon';
+    initialTimeMs: number;     // Initial time in milliseconds
+    incrementMs: number;       // Time added per move in milliseconds
+    name: string;              // Display name like "5+3"
+}
+
+export const TIME_CONTROL_PRESETS: Record<string, TimeControl> = {
+    'bullet-1': { type: 'bullet', initialTimeMs: 60000, incrementMs: 0, name: '1 min' },
+    'bullet-1-1': { type: 'bullet', initialTimeMs: 60000, incrementMs: 1000, name: '1+1' },
+    'bullet-2-1': { type: 'bullet', initialTimeMs: 120000, incrementMs: 1000, name: '2+1' },
+    'blitz-3': { type: 'blitz', initialTimeMs: 180000, incrementMs: 0, name: '3 min' },
+    'blitz-3-2': { type: 'blitz', initialTimeMs: 180000, incrementMs: 2000, name: '3+2' },
+    'blitz-5': { type: 'blitz', initialTimeMs: 300000, incrementMs: 0, name: '5 min' },
+    'blitz-5-3': { type: 'blitz', initialTimeMs: 300000, incrementMs: 3000, name: '5+3' },
+    'rapid-10': { type: 'rapid', initialTimeMs: 600000, incrementMs: 0, name: '10 min' },
+    'rapid-10-5': { type: 'rapid', initialTimeMs: 600000, incrementMs: 5000, name: '10+5' },
+    'rapid-15-10': { type: 'rapid', initialTimeMs: 900000, incrementMs: 10000, name: '15+10' },
+    'classical-30': { type: 'classical', initialTimeMs: 1800000, incrementMs: 0, name: '30 min' },
+    'classical-60': { type: 'classical', initialTimeMs: 3600000, incrementMs: 0, name: '60 min' },
+    'classical-90': { type: 'classical', initialTimeMs: 5400000, incrementMs: 30000, name: '90+30' },
+    'unlimited': { type: 'unlimited', initialTimeMs: 0, incrementMs: 0, name: 'Unlimited' },
+    'armageddon': { type: 'armageddon', initialTimeMs: 300000, incrementMs: 0, name: 'Armageddon' },
+};
+
+// ═══════════════════════════════════════════════════════════════
 // GAME STATE
 // ═══════════════════════════════════════════════════════════════
 
@@ -70,7 +99,9 @@ export type GameResult =
     | 'draw-agreement'
     | 'draw-insufficient-material'
     | 'draw-fifty-moves'
-    | 'draw-threefold-repetition';
+    | 'draw-threefold-repetition'
+    | 'white-wins-timeout'
+    | 'black-wins-timeout';
 
 export interface ChessGameState {
     board: Board;
@@ -94,6 +125,12 @@ export interface ChessGameState {
     // Captured pieces for display
     capturedByWhite: ChessPiece[];
     capturedByBlack: ChessPiece[];
+
+    // Timer system
+    timeControl: TimeControl | null;
+    whiteTimeRemainingMs: number;
+    blackTimeRemainingMs: number;
+    lastMoveTimestamp: number | null; // Server timestamp of last move
 }
 
 // ═══════════════════════════════════════════════════════════════

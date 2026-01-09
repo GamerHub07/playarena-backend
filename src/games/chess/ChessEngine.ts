@@ -20,6 +20,8 @@ import {
     PieceType,
     SpecialMoveType,
     ChessMovePayload,
+    TimeControl,
+    TIME_CONTROL_PRESETS,
     BOARD_SIZE,
     MIN_PLAYERS,
     MAX_PLAYERS,
@@ -61,6 +63,11 @@ export class ChessEngine extends GameEngine<ChessGameState> {
             drawOfferedBy: null,
             capturedByWhite: [],
             capturedByBlack: [],
+            // Timer fields - initialized later via setTimeControl
+            timeControl: null,
+            whiteTimeRemainingMs: 0,
+            blackTimeRemainingMs: 0,
+            lastMoveTimestamp: null,
         };
     }
 
@@ -110,6 +117,67 @@ export class ChessEngine extends GameEngine<ChessGameState> {
      */
     initializeGame(): void {
         this.state = this.getInitialState();
+    }
+
+    /**
+     * Set the time control for this game
+     */
+    setTimeControl(timeControlKey: string): void {
+        const timeControl = TIME_CONTROL_PRESETS[timeControlKey];
+        if (timeControl && timeControl.type !== 'unlimited') {
+            this.state.timeControl = timeControl;
+            this.state.whiteTimeRemainingMs = timeControl.initialTimeMs;
+            this.state.blackTimeRemainingMs = timeControl.initialTimeMs;
+            this.state.lastMoveTimestamp = Date.now();
+        }
+    }
+
+    /**
+     * Get current time remaining for a player (accounting for elapsed time)
+     */
+    getTimeRemaining(color: PlayerColor): number {
+        if (!this.state.timeControl || this.state.timeControl.type === 'unlimited') {
+            return -1; // Unlimited time
+        }
+
+        const baseTime = color === 'white'
+            ? this.state.whiteTimeRemainingMs
+            : this.state.blackTimeRemainingMs;
+
+        // If it's this player's turn, account for elapsed time
+        if (this.state.currentPlayer === color && this.state.lastMoveTimestamp && !this.isGameOver()) {
+            const elapsed = Date.now() - this.state.lastMoveTimestamp;
+            return Math.max(0, baseTime - elapsed);
+        }
+
+        return baseTime;
+    }
+
+    /**
+     * Check if a player has run out of time
+     */
+    checkTimeout(): PlayerColor | null {
+        if (!this.state.timeControl || this.state.timeControl.type === 'unlimited') {
+            return null;
+        }
+
+        const whiteTime = this.getTimeRemaining('white');
+        const blackTime = this.getTimeRemaining('black');
+
+        if (whiteTime <= 0) return 'white';
+        if (blackTime <= 0) return 'black';
+        return null;
+    }
+
+    /**
+     * Handle timeout - called by handler when time runs out
+     */
+    handleTimeout(losingColor: PlayerColor): ChessGameState {
+        this.state.gameResult = losingColor === 'white'
+            ? 'black-wins-timeout'
+            : 'white-wins-timeout';
+        this.state.winner = losingColor === 'white' ? 1 : 0;
+        return this.state;
     }
 
     handleAction(playerId: string, action: string, payload: unknown): ChessGameState {
