@@ -44,7 +44,9 @@ export type GameLogType =
   | 'CARD_PAY'          // Paid money from card
   | 'CARD_TRANSFER'     // Transferred money (from/to other players via card)
   | 'HOUSE_BUILT'       // Built a house
-  | 'HOTEL_BUILT';      // Built a hotel
+  | 'HOTEL_BUILT'      // Built a hotel
+  | 'JAIL_RELEASE'     // Released from jail
+  | 'JAIL_STAY';       // Turned in jail
 
 export interface GameLogEntry {
   id: string;
@@ -68,4 +70,5 @@ export interface MonopolyGameState {
   lastCard?: DrawnCard | null;
   doublesCount: number; // Track consecutive doubles (3 = jail)
   gameLog: GameLogEntry[]; // Transaction log for money flow
+  bankruptcyOrder: string[]; // sessionIds of eliminated players (in order of elimination)
 }

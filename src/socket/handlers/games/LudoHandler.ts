@@ -99,8 +99,14 @@ export class LudoHandler extends BaseHandler {
         const engine = gameStore.getGame(code) as LudoEngine | undefined;
 
         if (!engine) {
-            this.emitError(socket, 'Game not found');
+            // Check if room exists but it's not a running game yet, or different game type
+            // Silently return to allow other handlers (like Monopoly) to potentially pick it up
             return;
+        }
+
+        // Verify this is a Ludo game
+        if (engine.getGameType() !== 'ludo') {
+            return; 
         }
 
         const sessionId = socket.data.sessionId;

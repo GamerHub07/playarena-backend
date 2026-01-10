@@ -192,3 +192,38 @@ export function logHotelBuilt(
     propertyName,
   });
 }
+
+export function logJailStay(
+  state: MonopolyGameState,
+  playerId: string
+): void {
+  const player = state.playerState[playerId];
+  const entry: GameLogEntry = {
+    id: generateLogId(),
+    type: 'JAIL_STAY',
+    playerId,
+    playerName: player?.username || 'Unknown',
+    amount: 0,
+    description: 'stayed in jail',
+    timestamp: Date.now(),
+  };
+  state.gameLog.push(entry);
+}
+
+export function logJailRelease(
+  state: MonopolyGameState,
+  playerId: string,
+  reason: string
+): void {
+  const player = state.playerState[playerId];
+  const entry: GameLogEntry = {
+    id: generateLogId(),
+    type: 'JAIL_RELEASE',
+    playerId,
+    playerName: player?.username || 'Unknown',
+    amount: 0,
+    description: `was released from jail (${reason})`,
+    timestamp: Date.now(),
+  };
+  state.gameLog.push(entry);
+}
