@@ -23,6 +23,7 @@ export interface LudoGameState {
     turnPhase: 'roll' | 'move' | 'wait';
     winner: number | null; // Keeps track of the FIRST winner for backward compatibility logic if needed
     finishedPlayers: number[]; // Array of player indices in order of finishing
+    eliminatedPlayers: number[]; // Array of player indices who were eliminated (exceeded max auto-plays)
     moveHistory: MoveRecord[];
     movableTokens?: number[]; // Tokens that can be moved after rolling
 }

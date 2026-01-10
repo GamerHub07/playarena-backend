@@ -10,6 +10,7 @@ import { SOCKET_EVENTS } from '../events';
 import { JoinRoomPayload } from '../types';
 import Room from '../../models/Room';
 import { gameStore } from '../../services/gameStore';
+import { turnTimer } from '../../services/turnTimer';
 
 // In-memory chat history per room (limited to last 50 messages)
 interface ChatMessage {
@@ -130,6 +131,9 @@ export class RoomHandler extends BaseHandler {
                     reconnected: true, // Flag to indicate this is a reconnection
                 });
 
+                // Clear any turn timer for this player since they reconnected
+                turnTimer.onPlayerReconnected(code, sessionId);
+
                 console.log(`🔄 ${username} reconnected to in-progress game in room ${code}`);
             }
         }
@@ -164,6 +168,12 @@ export class RoomHandler extends BaseHandler {
                     players: room.players,
                     status: room.status,
                 });
+
+                // If game is in progress, check if it's this player's turn
+                // and start a turn timer if so
+                if (room.status === 'playing') {
+                    turnTimer.checkCurrentPlayerConnection(roomCode);
+                }
             }
 
             console.log(`👋 Player ${sessionId} disconnected from room ${roomCode}`);

@@ -44,6 +44,11 @@ export const SOCKET_EVENTS = {
     // System events
     // ⚠️ PROD EVENT — DO NOT CHANGE
     ERROR: 'error',
+
+    // Turn timeout events (for disconnected player handling)
+    TURN_TIMEOUT_WARNING: 'game:turnTimeoutWarning',
+    TURN_TIMEOUT_CLEARED: 'game:turnTimeoutCleared',
+    TURN_AUTO_PLAYED: 'game:turnAutoPlayed',
 } as const;
 
 // Type for event names

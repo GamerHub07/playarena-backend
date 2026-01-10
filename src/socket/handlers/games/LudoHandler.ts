@@ -12,6 +12,7 @@ import { TokenPosition, PLAYER_START_POSITIONS, PATH_LENGTH, PLAYER_COLORS } fro
 import Room from '../../../models/Room';
 import { MAIN_TRACK, HOME_STRETCH, getTokenGridPosition, PLAYER_COLOR_MAP } from '../../../games/ludo/LudoBoardLayout';
 import { gameStore } from '../../../services/gameStore';
+import { turnTimer } from '../../../services/turnTimer';
 
 export class LudoHandler extends BaseHandler {
     register(socket: Socket): void {
@@ -111,6 +112,13 @@ export class LudoHandler extends BaseHandler {
 
         const sessionId = socket.data.sessionId;
         const stateBefore = JSON.parse(JSON.stringify(engine.getState())); // Deep copy
+        const previousPlayer = stateBefore.currentPlayer;
+
+        // Find the player index for this session
+        const playerIndex = engine.getPlayers().findIndex(p => p.sessionId === sessionId);
+
+        // Clear any active turn timer and reset auto-play count since a player is taking their turn
+        turnTimer.onTurnTaken(code, playerIndex >= 0 ? playerIndex : undefined);
 
         // Handle the action
         const newState = engine.handleAction(sessionId, action, data);
@@ -190,6 +198,12 @@ export class LudoHandler extends BaseHandler {
             });
 
             console.log(`🏆 Game finished in room ${code}. Winner: ${leaderboard[0].username}`);
+        } else {
+            // Game not over - check if turn changed and if new player is disconnected
+            if (newState.currentPlayer !== previousPlayer) {
+                // Turn changed, check if new current player is connected
+                turnTimer.checkCurrentPlayerConnection(code);
+            }
         }
     }
 

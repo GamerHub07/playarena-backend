@@ -37,6 +37,7 @@ export class LudoEngine extends GameEngine<LudoGameState> {
             turnPhase: 'roll',
             winner: null,
             finishedPlayers: [],
+            eliminatedPlayers: [],
             moveHistory: [],
         };
     }
@@ -54,6 +55,7 @@ export class LudoEngine extends GameEngine<LudoGameState> {
         this.state.currentPlayer = 0;
         this.state.turnPhase = 'roll';
         this.state.finishedPlayers = [];
+        this.state.eliminatedPlayers = [];
         this.state.winner = null;
     }
 
@@ -323,16 +325,20 @@ export class LudoEngine extends GameEngine<LudoGameState> {
         const totalPlayers = this.players.length;
         let nextPlayerIndex = (this.state.currentPlayer + 1) % totalPlayers;
 
-        // Skip players who have finished
-        // Safety check: if all players finished, break (should be handled by isGameOver)
+        // Skip players who have finished or been eliminated
+        // Safety check: if all players finished/eliminated, break (should be handled by isGameOver)
         let attempts = 0;
-        while (this.state.players[nextPlayerIndex]?.rank && attempts < totalPlayers) {
+        while (
+            (this.state.players[nextPlayerIndex]?.rank ||
+                this.state.eliminatedPlayers.includes(nextPlayerIndex)) &&
+            attempts < totalPlayers
+        ) {
             nextPlayerIndex = (nextPlayerIndex + 1) % totalPlayers;
             attempts++;
         }
 
         if (attempts >= totalPlayers) {
-            // Everyone finished?
+            // Everyone finished or eliminated?
             this.state.turnPhase = 'wait';
             return;
         }
@@ -345,19 +351,109 @@ export class LudoEngine extends GameEngine<LudoGameState> {
 
     isGameOver(): boolean {
         const totalPlayers = this.players.length;
-        // Game ends when (Total Players - 1) have finished.
-        // The last remaining player has lost/is last.
-        // However, if there is only 1 player (testing mode), game ends when they finish.
+        const eliminatedCount = this.state.eliminatedPlayers.length;
+        const finishedCount = this.state.finishedPlayers.length;
+        const activePlayers = totalPlayers - eliminatedCount - finishedCount;
+
+        // Game ends when:
+        // 1. Only one active player remains (everyone else finished or eliminated)
+        // 2. All players finished (in case of 1 player testing mode)
         if (totalPlayers === 1) {
-            return this.state.finishedPlayers.length === 1;
-        } if (totalPlayers > 1) {
-            return this.state.finishedPlayers.length >= totalPlayers - 1;
+            return finishedCount === 1 || eliminatedCount === 1;
         }
-        return false;
+
+        // Game ends when only 1 active player remains
+        return activePlayers <= 1;
     }
 
     getWinner(): number | null {
         return this.state.winner;
+    }
+
+    /**
+     * Eliminate a player from the game (after max auto-plays exceeded)
+     * The player's tokens remain where they are, but they no longer get turns
+     */
+    eliminatePlayer(playerIndex: number): void {
+        if (this.state.eliminatedPlayers.includes(playerIndex)) {
+            return; // Already eliminated
+        }
+
+        if (this.state.players[playerIndex]?.rank) {
+            return; // Already finished
+        }
+
+        this.state.eliminatedPlayers.push(playerIndex);
+        console.log(`🚫 Player ${playerIndex} has been eliminated from the game`);
+
+        // If it was this player's turn, move to next player
+        if (this.state.currentPlayer === playerIndex) {
+            this.nextTurn();
+        }
+    }
+
+    /**
+     * Auto-play for a disconnected player
+     * This is called when a player's turn times out due to disconnection
+     * It will automatically roll the dice and make a move (or pass if no moves available)
+     */
+    autoPlay(playerIndex: number): LudoGameState {
+        // Check if it's actually this player's turn
+        if (this.state.currentPlayer !== playerIndex) {
+            return this.state;
+        }
+
+        // Check if player has already finished
+        if (this.state.players[playerIndex]?.rank) {
+            return this.state;
+        }
+
+        // If in roll phase, auto-roll
+        if (this.state.turnPhase === 'roll') {
+            this.rollDice(playerIndex);
+        }
+
+        // If now in move phase, make a random valid move
+        if (this.state.turnPhase === 'move' && this.state.movableTokens && this.state.movableTokens.length > 0) {
+            // Pick a random movable token (simple AI)
+            // Priority: prefer tokens that can reach finish, then tokens on path, then tokens in home
+            const playerState = this.state.players[playerIndex];
+            const movableTokens = this.state.movableTokens;
+
+            // Simple strategy: pick the first movable token
+            // Could be enhanced to pick more strategically
+            const tokenToMove = movableTokens[0];
+
+            this.moveToken(playerIndex, { tokenIndex: tokenToMove });
+        }
+
+        // If still this player's turn (got a 6, captured, etc.) and can roll again, 
+        // continue auto-playing until turn passes
+        let safetyCounter = 0;
+        const maxIterations = 10; // Prevent infinite loops
+
+        while (
+            this.state.currentPlayer === playerIndex &&
+            !this.state.players[playerIndex]?.rank &&
+            !this.isGameOver() &&
+            safetyCounter < maxIterations
+        ) {
+            safetyCounter++;
+
+            if (this.state.turnPhase === 'roll') {
+                this.rollDice(playerIndex);
+            }
+
+            if (this.state.turnPhase === 'move' && this.state.movableTokens && this.state.movableTokens.length > 0) {
+                const tokenToMove = this.state.movableTokens[0];
+                this.moveToken(playerIndex, { tokenIndex: tokenToMove });
+            } else if (this.state.turnPhase === 'move') {
+                // No movable tokens, this shouldn't happen but break to be safe
+                break;
+            }
+        }
+
+        return this.state;
     }
 
     getDiceResult(): DiceRollResult | null {
