@@ -3,7 +3,7 @@
  * All socket-related payload interfaces
  */
 
-import { LudoGameState, TokenPosition } from '../../games/ludo/LudoTypes';
+import { SnakeLadderGameState, SnakeLadderMoveStep } from '../../games/snake-ladder/SnakeLadderTypes';
 
 // Socket data attached to each connection
 export interface SocketData {
@@ -41,13 +41,11 @@ export interface GameStartPayload {
 export interface GameActionPayload {
     roomCode: string;
     action: 'roll' | 'move';
-    data?: {
-        tokenIndex?: number;
-    };
+    data?: unknown;
 }
 
 export interface GameStatePayload {
-    state: LudoGameState;
+    state: SnakeLadderGameState | any; // Allow any for Poker
     lastAction?: {
         action: string;
         by: string;
@@ -55,25 +53,11 @@ export interface GameStatePayload {
     };
 }
 
-// Token Animation Payloads
-export interface TokenMoveStep {
-    playerIndex: number;
-    tokenIndex: number;
-    position: {
-        zone: TokenPosition['zone'];
-        index: number;
-    };
-    row: number;
-    col: number;
-    stepNumber: number;
-    totalSteps: number;
-    captured?: boolean;
-}
-
 export interface TokenMovePayload {
     roomCode: string;
-    steps: TokenMoveStep[];
-    finalState: LudoGameState;
+    steps: SnakeLadderMoveStep[];
+    finalState: SnakeLadderGameState;
+    move?: any;
 }
 
 // Error Payload

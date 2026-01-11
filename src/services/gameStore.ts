@@ -14,14 +14,13 @@
  */
 
 import { GameEngine, SerializedGame } from '../games/base/GameEngine';
-import { LudoEngine } from '../games/ludo/LudoEngine';
 import { SnakeLadderEngine } from '../games/snake-ladder/SnakeLadderEngine';
-import { MonopolyEngine } from '../games/monopoly';
+
 import { PokerEngine } from '../games/poker';
 import { featureFlags } from '../config/featureFlags';
 
 // Game type registry - add new games here
-export type GameType = 'ludo' | 'snake-ladder' | 'monopoly' | 'poker';
+export type GameType = 'snake-ladder' | 'poker';
 
 
 // Factory function type for creating game engines
@@ -29,9 +28,7 @@ type GameEngineFactory = (roomCode: string) => GameEngine;
 
 // Registry of game factories
 const gameFactories: Record<GameType, GameEngineFactory> = {
-    'ludo': (roomCode) => new LudoEngine(roomCode),
     'snake-ladder': (roomCode) => new SnakeLadderEngine(roomCode),
-    'monopoly': (roomCode) => new MonopolyEngine(roomCode),
     'poker': (roomCode) => new PokerEngine(roomCode),
 };
 
