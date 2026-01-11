@@ -46,7 +46,7 @@ app.use(errorHandler);
 httpServer.listen(PORT, () => {
   console.log(`
   🎮 ========================================
-     PlayArena API Server
+     PlayArena API Server ${process.env.NODE_ENV}
      Running on: http://localhost:${PORT}
      WebSocket: ws://localhost:${PORT}
      Environment: ${process.env.NODE_ENV || 'development'}
