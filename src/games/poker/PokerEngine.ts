@@ -642,6 +642,60 @@ export class PokerEngine extends GameEngine<PokerGameState> {
     }
 
     /**
+     * Auto-play for a disconnected player (auto-fold)
+     * Used by turnTimer when a player times out
+     */
+    autoPlay(playerIndex: number): PokerGameState {
+        const player = this.state.players[playerIndex];
+
+        if (!player || player.folded || player.allIn) {
+            // Player can't act, just advance
+            this.advanceGame();
+            return this.state;
+        }
+
+        // Auto-fold for the player (bypass turn validation)
+        player.folded = true;
+        player.lastAction = 'fold';
+        player.hasActed = true;
+
+        this.advanceGame();
+        return this.state;
+    }
+
+    /**
+     * Eliminate a player from the game
+     * Used by turnTimer when a player has timed out too many times
+     */
+    eliminatePlayer(playerIndex: number): void {
+        const player = this.state.players[playerIndex];
+
+        if (!player) return;
+
+        // Mark player as eliminated
+        player.folded = true;
+        player.isActive = false;
+        player.chips = 0;
+        player.lastAction = 'eliminated';
+
+        // Check if only one player remains with chips
+        const playersWithChips = Object.values(this.state.players).filter(p => p.chips > 0 && p.isActive);
+        if (playersWithChips.length === 1) {
+            this.state.gameWinner = playersWithChips[0].position;
+            this.state.isGameOver = true;
+            this.state.phase = 'ended';
+        } else if (playersWithChips.length === 0) {
+            this.state.isGameOver = true;
+            this.state.phase = 'ended';
+        } else {
+            // Advance the game if it was this player's turn
+            if (this.state.currentPlayerIndex === playerIndex) {
+                this.advanceGame();
+            }
+        }
+    }
+
+    /**
      * Get state with hands masked for a specific player
      */
     getMaskedStateForPlayer(sessionId: string): PokerGameState {

@@ -49,7 +49,7 @@ export interface PokerPlayerState {
 
 export type BettingPhase = 'waiting' | 'preflop' | 'flop' | 'turn' | 'river' | 'showdown' | 'ended';
 
-export type PlayerAction = 'fold' | 'check' | 'call' | 'raise' | 'all-in';
+export type PlayerAction = 'fold' | 'check' | 'call' | 'raise' | 'all-in' | 'eliminated';
 
 export interface PokerGameState {
     // Core game state

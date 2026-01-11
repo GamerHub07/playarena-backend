@@ -11,10 +11,22 @@ import { socketManager } from '../socket/SocketManager';
 import { SOCKET_EVENTS } from '../socket/events';
 import { gameStore } from './gameStore';
 import { LudoEngine } from '../games/ludo/LudoEngine';
+import { PokerEngine } from '../games/poker/PokerEngine';
 import Room from '../models/Room';
 
-// Timeout duration in milliseconds (30 seconds)
-export const TURN_TIMEOUT_MS = 30000;
+// Timeout duration in milliseconds per game type
+export const LUDO_TIMEOUT_MS = 30000;  // 30 seconds for Ludo
+export const POKER_TIMEOUT_MS = 15000; // 15 seconds for Poker
+export const DEFAULT_TIMEOUT_MS = 30000;
+
+// Helper to get timeout for a game type
+function getTimeoutForGameType(gameType: string): number {
+  switch (gameType) {
+    case 'poker': return POKER_TIMEOUT_MS;
+    case 'ludo': return LUDO_TIMEOUT_MS;
+    default: return DEFAULT_TIMEOUT_MS;
+  }
+}
 
 // Interval for sending countdown updates (every second)
 const COUNTDOWN_INTERVAL_MS = 1000;
@@ -29,6 +41,8 @@ interface TurnTimerEntry {
   startedAt: number;
   timeoutId: NodeJS.Timeout;
   countdownIntervalId: NodeJS.Timeout;
+  gameType: string;
+  timeoutMs: number;
 }
 
 class TurnTimerService {
@@ -56,11 +70,16 @@ class TurnTimerService {
     // Clear any existing timer for this room
     this.clearTimer(normalizedCode);
 
+    // Detect game type to get appropriate timeout
+    const engine = gameStore.getGame(normalizedCode);
+    const gameType = engine?.getGameType() || 'ludo';
+    const timeoutMs = getTimeoutForGameType(gameType);
+
     const startedAt = Date.now();
 
     // Start countdown interval to notify clients
     const countdownIntervalId = setInterval(() => {
-      const remaining = Math.max(0, TURN_TIMEOUT_MS - (Date.now() - startedAt));
+      const remaining = Math.max(0, timeoutMs - (Date.now() - startedAt));
       const secondsRemaining = Math.ceil(remaining / 1000);
 
       socketManager.emitToRoom(normalizedCode, SOCKET_EVENTS.TURN_TIMEOUT_WARNING, {
@@ -78,7 +97,7 @@ class TurnTimerService {
     // Set the actual timeout
     const timeoutId = setTimeout(async () => {
       await this.handleTimeout(normalizedCode);
-    }, TURN_TIMEOUT_MS);
+    }, timeoutMs);
 
     const entry: TurnTimerEntry = {
       roomCode: normalizedCode,
@@ -87,17 +106,19 @@ class TurnTimerService {
       startedAt,
       timeoutId,
       countdownIntervalId,
+      gameType,
+      timeoutMs,
     };
 
     this.activeTimers.set(normalizedCode, entry);
 
-    console.log(`⏱️ Turn timer started for player ${playerIndex} in room ${normalizedCode}`);
+    console.log(`⏱️ Turn timer started for player ${playerIndex} in room ${normalizedCode} (${gameType}: ${timeoutMs / 1000}s)`);
 
     // Immediately notify clients about the timer start
     socketManager.emitToRoom(normalizedCode, SOCKET_EVENTS.TURN_TIMEOUT_WARNING, {
       playerIndex,
       sessionId,
-      secondsRemaining: Math.ceil(TURN_TIMEOUT_MS / 1000),
+      secondsRemaining: Math.ceil(timeoutMs / 1000),
       isDisconnected: true,
     });
   }
@@ -135,9 +156,9 @@ class TurnTimerService {
     this.activeTimers.delete(roomCode);
     clearInterval(entry.countdownIntervalId);
 
-    console.log(`⏱️ Turn timeout for player ${entry.playerIndex} in room ${roomCode}`);
+    console.log(`⏱️ Turn timeout for player ${entry.playerIndex} in room ${roomCode} (${entry.gameType})`);
 
-    const engine = gameStore.getGame(roomCode) as LudoEngine | undefined;
+    const engine = gameStore.getGame(roomCode);
     if (!engine) {
       console.log(`⏱️ No game found for room ${roomCode}, skipping timeout handling`);
       return;
@@ -148,10 +169,15 @@ class TurnTimerService {
       return;
     }
 
+    const gameType = engine.getGameType();
     const state = engine.getState();
 
-    // Verify it's still this player's turn
-    if (state.currentPlayer !== entry.playerIndex) {
+    // Verify it's still this player's turn (different property for each game)
+    const currentPlayerIdx = gameType === 'poker'
+      ? (state as any).currentPlayerIndex
+      : (state as any).currentPlayer;
+
+    if (currentPlayerIdx !== entry.playerIndex) {
       console.log(`⏱️ Player ${entry.playerIndex} is no longer current player, skipping`);
       return;
     }
@@ -165,19 +191,33 @@ class TurnTimerService {
         console.log(`⏱️ Player ${entry.playerIndex} exceeded max auto-plays (${MAX_AUTO_PLAYS}), eliminating from game`);
 
         // Mark player as eliminated in the engine
-        engine.eliminatePlayer(entry.playerIndex);
+        if ('eliminatePlayer' in engine) {
+          (engine as any).eliminatePlayer(entry.playerIndex);
+        }
 
         const newState = engine.getState();
+        const newCurrentPlayer = gameType === 'poker'
+          ? (newState as any).currentPlayerIndex
+          : (newState as any).currentPlayer;
 
         // Emit the updated state to all clients
-        socketManager.emitToRoom(roomCode, SOCKET_EVENTS.GAME_STATE, {
-          state: newState,
-          lastAction: {
+        if (gameType === 'poker') {
+          // For poker, emit masked state to each player
+          await this.emitPokerStateToPlayers(roomCode, engine as unknown as PokerEngine, {
             action: 'player_eliminated',
             by: entry.sessionId,
             data: { reason: 'max_auto_plays_exceeded' }
-          },
-        });
+          });
+        } else {
+          socketManager.emitToRoom(roomCode, SOCKET_EVENTS.GAME_STATE, {
+            state: newState,
+            lastAction: {
+              action: 'player_eliminated',
+              by: entry.sessionId,
+              data: { reason: 'max_auto_plays_exceeded' }
+            },
+          });
+        }
 
         // Notify clients that player was eliminated
         socketManager.emitToRoom(roomCode, SOCKET_EVENTS.TURN_AUTO_PLAYED, {
@@ -191,12 +231,12 @@ class TurnTimerService {
         // Update room game state in database
         await Room.updateOne(
           { code: roomCode },
-          { gameState: newState, currentTurn: newState.currentPlayer }
+          { gameState: newState, currentTurn: newCurrentPlayer }
         );
 
         // Check if game is over after elimination
         if (engine.isGameOver()) {
-          await this.handleGameOver(roomCode, engine);
+          await this.handleGameOver(roomCode, engine as any, gameType);
         } else {
           // Check if the new current player is also disconnected
           await this.checkCurrentPlayerConnection(roomCode);
@@ -210,18 +250,37 @@ class TurnTimerService {
       const newAutoPlayCount = this.getAutoPlayCount(roomCode, entry.playerIndex);
 
       // Auto-play for the disconnected player
-      const newState = engine.autoPlay(entry.playerIndex);
+      let newState;
+      if ('autoPlay' in engine) {
+        newState = (engine as any).autoPlay(entry.playerIndex);
+      } else {
+        console.error(`⏱️ Engine for ${gameType} does not support autoPlay`);
+        return;
+      }
+
+      const newCurrentPlayer = gameType === 'poker'
+        ? (newState as any).currentPlayerIndex
+        : (newState as any).currentPlayer;
 
       // Emit the updated state to all clients
-      socketManager.emitToRoom(roomCode, SOCKET_EVENTS.GAME_STATE, {
-        state: newState,
-        lastAction: {
+      if (gameType === 'poker') {
+        // For poker, emit masked state to each player
+        await this.emitPokerStateToPlayers(roomCode, engine as unknown as PokerEngine, {
           action: 'auto_play',
           by: entry.sessionId,
           data: { reason: 'timeout' }
-        },
-        autoPlayed: true,
-      });
+        }, true);
+      } else {
+        socketManager.emitToRoom(roomCode, SOCKET_EVENTS.GAME_STATE, {
+          state: newState,
+          lastAction: {
+            action: 'auto_play',
+            by: entry.sessionId,
+            data: { reason: 'timeout' }
+          },
+          autoPlayed: true,
+        });
+      }
 
       // Notify clients that auto-play occurred
       socketManager.emitToRoom(roomCode, SOCKET_EVENTS.TURN_AUTO_PLAYED, {
@@ -235,14 +294,14 @@ class TurnTimerService {
       // Update room game state in database
       await Room.updateOne(
         { code: roomCode },
-        { gameState: newState, currentTurn: newState.currentPlayer }
+        { gameState: newState, currentTurn: newCurrentPlayer }
       );
 
       console.log(`⏱️ Auto-played for player ${entry.playerIndex} in room ${roomCode} (${newAutoPlayCount}/${MAX_AUTO_PLAYS})`);
 
       // Check if game is over after auto-play
       if (engine.isGameOver()) {
-        await this.handleGameOver(roomCode, engine);
+        await this.handleGameOver(roomCode, engine as any, gameType);
       } else {
         // Check if the new current player is also disconnected
         await this.checkCurrentPlayerConnection(roomCode);
@@ -253,46 +312,101 @@ class TurnTimerService {
   }
 
   /**
+   * Emit poker state to each player with their masked view
+   */
+  private async emitPokerStateToPlayers(
+    roomCode: string,
+    engine: PokerEngine,
+    lastAction: { action: string; by: string; data?: any },
+    autoPlayed = false
+  ): Promise<void> {
+    const players = engine.getPlayers();
+    for (const player of players) {
+      const maskedState = engine.getMaskedStateForPlayer(player.sessionId);
+      try {
+        const io = socketManager.getIO();
+        const sockets = io.sockets.sockets;
+        for (const [, socket] of sockets) {
+          if (socket.data.sessionId === player.sessionId) {
+            socket.emit(SOCKET_EVENTS.GAME_STATE, {
+              state: maskedState,
+              lastAction,
+              availableActions: engine.getAvailableActions(player.position),
+              autoPlayed,
+            });
+            break;
+          }
+        }
+      } catch {
+        // SocketManager not initialized
+      }
+    }
+  }
+
+  /**
    * Handle game over after auto-play
    */
-  private async handleGameOver(roomCode: string, engine: LudoEngine): Promise<void> {
+  private async handleGameOver(roomCode: string, engine: LudoEngine | PokerEngine, gameType: string): Promise<void> {
     const state = engine.getState();
     const players = engine.getPlayers();
-    const leaderboard: Array<{ position: number, username: string, sessionId: string, rank: number }> = [];
-
-    // Add finished players
-    state.finishedPlayers.forEach((playerIndex, idx) => {
-      const p = players[playerIndex];
-      leaderboard.push({
-        position: playerIndex,
-        username: p.username,
-        sessionId: p.sessionId,
-        rank: idx + 1,
-      });
-    });
-
-    // Add remaining players
-    Object.entries(players).forEach(([idxStr, p]) => {
-      const idx = parseInt(idxStr);
-      if (!state.finishedPlayers.includes(idx)) {
-        leaderboard.push({
-          position: idx,
-          username: p.username,
-          sessionId: p.sessionId,
-          rank: leaderboard.length + 1,
-        });
-      }
-    });
 
     await Room.updateOne({ code: roomCode }, { status: 'finished' });
     gameStore.deleteGame(roomCode);
 
-    socketManager.emitToRoom(roomCode, SOCKET_EVENTS.GAME_WINNER, {
-      winner: leaderboard[0],
-      leaderboard,
-    });
+    if (gameType === 'poker') {
+      // Poker game over
+      const pokerEngine = engine as PokerEngine;
+      const winnerIndex = pokerEngine.getWinner();
+      const winnerData = winnerIndex !== null ? {
+        position: winnerIndex,
+        username: players.find(p => p.position === winnerIndex)?.username,
+        sessionId: players.find(p => p.position === winnerIndex)?.sessionId,
+      } : null;
 
-    console.log(`🏆 Game finished in room ${roomCode} (via timeout). Winner: ${leaderboard[0].username}`);
+      socketManager.emitToRoom(roomCode, SOCKET_EVENTS.GAME_WINNER, {
+        winner: winnerData,
+        isGameOver: true,
+      });
+
+      console.log(`🏆 Poker game finished in room ${roomCode} (via timeout). Winner: ${winnerData?.username}`);
+    } else {
+      // Ludo game over
+      const ludoState = state as any;
+      const leaderboard: Array<{ position: number, username: string, sessionId: string, rank: number }> = [];
+
+      // Add finished players
+      if (ludoState.finishedPlayers) {
+        ludoState.finishedPlayers.forEach((playerIndex: number, idx: number) => {
+          const p = players[playerIndex];
+          leaderboard.push({
+            position: playerIndex,
+            username: p.username,
+            sessionId: p.sessionId,
+            rank: idx + 1,
+          });
+        });
+      }
+
+      // Add remaining players
+      Object.entries(players).forEach(([idxStr, p]: [string, any]) => {
+        const idx = parseInt(idxStr);
+        if (!ludoState.finishedPlayers?.includes(idx)) {
+          leaderboard.push({
+            position: idx,
+            username: p.username,
+            sessionId: p.sessionId,
+            rank: leaderboard.length + 1,
+          });
+        }
+      });
+
+      socketManager.emitToRoom(roomCode, SOCKET_EVENTS.GAME_WINNER, {
+        winner: leaderboard[0],
+        leaderboard,
+      });
+
+      console.log(`🏆 Ludo game finished in room ${roomCode} (via timeout). Winner: ${leaderboard[0]?.username}`);
+    }
   }
 
   /**
@@ -301,11 +415,17 @@ class TurnTimerService {
   async checkCurrentPlayerConnection(roomCode: string): Promise<void> {
     const normalizedCode = roomCode.toUpperCase();
 
-    const engine = gameStore.getGame(normalizedCode) as LudoEngine | undefined;
+    const engine = gameStore.getGame(normalizedCode);
     if (!engine || engine.isGameOver()) return;
 
+    const gameType = engine.getGameType();
     const state = engine.getState();
-    const currentPlayerIndex = state.currentPlayer;
+
+    // Get current player index based on game type
+    const currentPlayerIndex = gameType === 'poker'
+      ? (state as any).currentPlayerIndex
+      : (state as any).currentPlayer;
+
     const players = engine.getPlayers();
     const currentPlayer = players[currentPlayerIndex];
 
@@ -364,7 +484,7 @@ class TurnTimerService {
     if (!entry) return null;
 
     const elapsed = Date.now() - entry.startedAt;
-    return Math.max(0, TURN_TIMEOUT_MS - elapsed);
+    return Math.max(0, entry.timeoutMs - elapsed);
   }
 
   // ═══════════════════════════════════════════════════════════════

@@ -13,6 +13,7 @@ import { PokerEngine } from '../../../games/poker/PokerEngine';
 import { PokerActionPayload } from '../../../games/poker/PokerTypes';
 import Room from '../../../models/Room';
 import { gameStore } from '../../../services/gameStore';
+import { turnTimer } from '../../../services/turnTimer';
 
 export class PokerHandler extends BaseHandler {
     register(socket: Socket): void {
@@ -118,6 +119,14 @@ export class PokerHandler extends BaseHandler {
         }
 
         const sessionId = socket.data.sessionId;
+        const stateBefore = engine.getState();
+        const previousPlayerIndex = stateBefore.currentPlayerIndex;
+
+        // Find the player index for this session
+        const playerIndex = engine.getPlayers().findIndex(p => p.sessionId === sessionId);
+
+        // Clear any active turn timer and reset auto-play count since a player is taking their turn
+        turnTimer.onTurnTaken(code, playerIndex >= 0 ? playerIndex : undefined);
 
         try {
             // Construct poker action payload
@@ -190,6 +199,12 @@ export class PokerHandler extends BaseHandler {
                 });
 
                 console.log(`🃏 Hand finished in room ${code}. Winners: ${newState.winners?.map(w => w.handName).join(', ')}`);
+            } else {
+                // Game not over - check if turn changed and if new player is disconnected
+                if (newState.currentPlayerIndex !== previousPlayerIndex) {
+                    // Turn changed, check if new current player is connected
+                    turnTimer.checkCurrentPlayerConnection(code);
+                }
             }
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Unknown error';
