@@ -40,7 +40,7 @@ function registerHandlers(socket: Socket): void {
 
 
     // Snake & Ladder game events
-    const snakeLadderHandler = new SnakeLadderHandler();
+
     snakeLadderHandler.register(socket);
 
     // Poker game events
