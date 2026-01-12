@@ -7,7 +7,6 @@ import { Server as SocketServer, Socket } from 'socket.io';
 import { Server as HttpServer } from 'http';
 import { socketManager } from './SocketManager';
 import { RoomHandler, LudoHandler, MonopolyHandler, SnakeLadderHandler } from './handlers';
-import { featureFlags } from '../config/featureFlags';
 
 import { SOCKET_EVENTS } from './events';
 
