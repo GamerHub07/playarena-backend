@@ -253,26 +253,49 @@ export class SnakeLadderEngine extends GameEngine<SnakeLadderGameState> {
         let stepCount = 0;
         let p = fromPos;
 
+        // Calculate if we need to bounce
+        const directTarget = fromPos + diceValue;
+        const willBounce = directTarget > BOARD_SIZE;
+
         // 1. Dice Movement (1..diceValue)
+        // Track whether we've hit 100 and started bouncing
+        let bouncingBack = false;
+
         for (let i = 1; i <= diceValue; i++) {
-            // Forward
-            if (p < BOARD_SIZE && (diceValue <= (BOARD_SIZE - fromPos) || i <= (BOARD_SIZE - fromPos))) {
+            if (!bouncingBack) {
+                // Moving forward
                 p++;
+                if (p >= BOARD_SIZE) {
+                    // Reached or passed 100 - start bouncing on next step
+                    p = BOARD_SIZE;
+                    if (willBounce && i < diceValue) {
+                        bouncingBack = true;
+                    }
+                }
             } else {
-                // Bounce back
+                // Bouncing back from 100
                 p--;
             }
 
             stepCount++;
             const grid = positionToGrid(p);
+
+            // Determine the moveType for this step
+            let moveType: 'normal' | 'snake' | 'ladder' | 'win' | 'bounce' = 'normal';
+            if (bouncingBack) {
+                moveType = 'bounce';
+            } else if (i === diceValue && !usedSnake && !usedLadder && p === BOARD_SIZE) {
+                moveType = 'win';
+            }
+
             steps.push({
                 playerIndex,
                 position: p,
                 row: grid.row,
                 col: grid.col,
                 stepNumber: stepCount,
-                totalSteps: 0, // Fill later if needed, mostly for FE progress
-                moveType: (i === diceValue && !usedSnake && !usedLadder) ? (p === BOARD_SIZE ? 'win' : 'normal') : 'normal'
+                totalSteps: 0, // Fill later
+                moveType
             });
         }
 
