@@ -9,7 +9,7 @@
  * - Winner determination and pot distribution
  */
 
-import { GameEngine, GamePlayer } from '../base/GameEngine';
+import { GameEngine, GamePlayer, ReconnectionState } from '../base/GameEngine';
 import { Hand } from 'pokersolver';
 import {
     PokerGameState,
@@ -693,6 +693,21 @@ export class PokerEngine extends GameEngine<PokerGameState> {
                 this.advanceGame();
             }
         }
+    }
+
+    /**
+     * Override: Get poker-specific state for a player
+     * Returns masked state (hiding opponent cards) and available actions
+     */
+    override getStateForPlayer(sessionId: string): ReconnectionState<PokerGameState> {
+        const maskedState = this.getMaskedStateForPlayer(sessionId);
+        const player = Object.values(this.state.players).find(p => p.sessionId === sessionId);
+        const availableActions = player ? this.getAvailableActions(player.position) : [];
+
+        return {
+            state: maskedState,
+            availableActions,
+        };
     }
 
     /**

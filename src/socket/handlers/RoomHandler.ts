@@ -80,32 +80,13 @@ export class RoomHandler extends BaseHandler {
         if (room.status === 'playing') {
             const engine = gameStore.getGame(code);
             if (engine) {
-                // For poker games, use the masked state to hide opponent cards
-                // Also send availableActions so action buttons show correctly
-                const gameType = engine.getGameType();
-                let stateToSend: unknown;
-                let availableActions: string[] = [];
-
-                if (gameType === 'poker' && 'getMaskedStateForPlayer' in engine && 'getAvailableActions' in engine) {
-                    const pokerEngine = engine as unknown as {
-                        getMaskedStateForPlayer: (sid: string) => unknown;
-                        getAvailableActions: (idx: number) => string[];
-                        getState: () => { currentPlayerIndex: number; players: Record<number, { sessionId: string; position: number }> };
-                    };
-                    stateToSend = pokerEngine.getMaskedStateForPlayer(sessionId);
-
-                    // Find the player's position to get their available actions
-                    const state = pokerEngine.getState();
-                    const playerEntry = Object.values(state.players).find(p => p.sessionId === sessionId);
-                    if (playerEntry) {
-                        availableActions = pokerEngine.getAvailableActions(playerEntry.position);
-                    }
-                } else {
-                    stateToSend = engine.getState();
-                }
+                // Use generic method - works for ALL game types
+                // Each game engine can customize what state to return
+                // (e.g., Poker hides opponent cards, other games return full state)
+                const { state, availableActions } = engine.getStateForPlayer(sessionId);
 
                 socket.emit(SOCKET_EVENTS.GAME_STATE, {
-                    state: stateToSend,
+                    state,
                     availableActions,
                     reconnected: true, // Flag to indicate this is a reconnection
                 });

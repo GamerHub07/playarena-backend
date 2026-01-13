@@ -25,6 +25,15 @@ export interface SerializedGame<TState = unknown> {
     updatedAt: number;
 }
 
+/**
+ * State returned when a player reconnects or needs state update
+ * Each game can customize what state/actions to return
+ */
+export interface ReconnectionState<TState = unknown> {
+    state: TState;
+    availableActions: string[];
+}
+
 export abstract class GameEngine<TState = unknown> {
     protected roomCode: string;
     protected players: GamePlayer[];
@@ -70,6 +79,28 @@ export abstract class GameEngine<TState = unknown> {
 
     /** Get winner index, or null if no winner yet */
     abstract getWinner(): number | null;
+
+    // ═══════════════════════════════════════════════════════════════
+    // RECONNECTION STATE - Override in game engines that need custom behavior
+    // ═══════════════════════════════════════════════════════════════
+
+    /**
+     * Get game state for a specific player (for reconnection or state updates)
+     * Override in game-specific engines if special handling is needed
+     * (e.g., hiding opponent cards in Poker)
+     * 
+     * @param sessionId - The player's session ID
+     * @returns State and available actions for this player
+     */
+    getStateForPlayer(sessionId: string): ReconnectionState<TState> {
+        // Default implementation: return full state, no actions
+        // Games like Poker override this to mask opponent cards
+        void sessionId; // Mark as intentionally unused in base implementation
+        return {
+            state: this.state,
+            availableActions: [],
+        };
+    }
 
     // ═══════════════════════════════════════════════════════════════
     // SERIALIZATION - For Redis scaling and reconnections
