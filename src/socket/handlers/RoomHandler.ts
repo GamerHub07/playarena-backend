@@ -12,6 +12,7 @@ import Room from '../../models/Room';
 import { gameStore } from '../../services/gameStore';
 import { turnTimer } from '../../services/turnTimer';
 import { playtimeTracker } from '../../services/playtimeTracker';
+import { ChessEngine } from '../../games/chess/ChessEngine';
 
 export class RoomHandler extends BaseHandler {
     register(socket: Socket): void {

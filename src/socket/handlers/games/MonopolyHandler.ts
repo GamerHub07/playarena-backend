@@ -45,10 +45,12 @@ export class MonopolyHandler extends BaseHandler {
         if (room.gameType !== 'monopoly') {
             return; // Let other handlers deal with it
         }
+
         // Check if game already exists (prevent duplicate starts)
         if (gameStore.hasGame(code)) {
             return; // Game already started
         }
+
         if (room.players.length < room.minPlayers) {
             this.emitError(socket, `Need at least ${room.minPlayers} players`);
             return;

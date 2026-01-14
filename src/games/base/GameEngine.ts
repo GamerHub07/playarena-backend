@@ -72,6 +72,21 @@ export abstract class GameEngine<TState = unknown> {
     abstract getWinner(): number | null;
 
     // ═══════════════════════════════════════════════════════════════
+    // LIFECYCLE HOOKS (OPTIONAL)
+    // ═══════════════════════════════════════════════════════════════
+
+    /**
+     * Called exactly once when the game officially starts.
+     * Games may override this to initialize turn order,
+     * assign colors, shuffle cards, etc.
+     *
+     * Default: no-op (safe for existing games)
+     */
+    onGameStart(): void {
+        // intentionally empty
+    }
+
+    // ═══════════════════════════════════════════════════════════════
     // SERIALIZATION - For Redis scaling and reconnections
     // ═══════════════════════════════════════════════════════════════
 

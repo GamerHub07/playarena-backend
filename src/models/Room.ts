@@ -2,7 +2,6 @@ import mongoose, { Schema, Document } from 'mongoose';
 
 export type GameType = 'ludo' | 'chess' | 'snake-ladder' | 'monopoly' | 'poker';
 
-
 export type RoomStatus = 'waiting' | 'playing' | 'finished';
 
 export interface IPlayer {
@@ -43,14 +42,13 @@ const RoomSchema = new Schema<IRoom>({
         unique: true,
         index: true,
         uppercase: true,
-        minlength: 6, // Changed from length to minlength/maxlength for Mongoose
+        minlength: 6,
         maxlength: 6,
     },
     gameType: {
         type: String,
         required: true,
         enum: ['ludo', 'chess', 'snake-ladder', 'monopoly', 'poker'],
-
     },
     status: {
         type: String,
