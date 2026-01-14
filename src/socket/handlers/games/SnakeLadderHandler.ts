@@ -13,6 +13,8 @@ import { SnakeLadderEngine } from '../../../games/snake-ladder/SnakeLadderEngine
 import { SnakeLadderMoveStep } from '../../../games/snake-ladder/SnakeLadderTypes';
 import Room from '../../../models/Room';
 import { gameStore } from '../../../services/gameStore';
+import { playtimeTracker } from '../../../services/playtimeTracker';
+import { socketManager } from '../../SocketManager';
 
 export class SnakeLadderHandler extends BaseHandler {
     register(socket: Socket): void {
@@ -87,6 +89,14 @@ export class SnakeLadderHandler extends BaseHandler {
         this.emitToRoom(code, SOCKET_EVENTS.GAME_START, {
             state: engine.getState(),
             players: engine.getPlayers(),
+        });
+
+        // Start playtime tracking for all users in the room
+        const sockets = socketManager.getRoomSockets(code);
+        sockets.forEach(s => {
+            if (s.data.userId) {
+                playtimeTracker.startSession(s.data.userId);
+            }
         });
 
         console.log(`🐍 Snake & Ladder game started in room ${code}`);
@@ -164,6 +174,14 @@ export class SnakeLadderHandler extends BaseHandler {
 
                 // Clean up game from store
                 gameStore.deleteGame(code);
+
+                // STOP TRACKING FOR ALL PLAYERS
+                const sockets = socketManager.getRoomSockets(code);
+                sockets.forEach(s => {
+                    if (s.data.userId) {
+                        playtimeTracker.endSession(s.data.userId);
+                    }
+                });
 
                 this.emitToRoom(code, SOCKET_EVENTS.GAME_WINNER, {
                     winner: {

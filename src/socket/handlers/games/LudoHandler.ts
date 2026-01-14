@@ -13,6 +13,8 @@ import Room from '../../../models/Room';
 import { MAIN_TRACK, HOME_STRETCH, getTokenGridPosition, PLAYER_COLOR_MAP } from '../../../games/ludo/LudoBoardLayout';
 import { gameStore } from '../../../services/gameStore';
 import { turnTimer } from '../../../services/turnTimer';
+import { playtimeTracker } from '../../../services/playtimeTracker';
+import { socketManager } from '../../SocketManager';
 
 export class LudoHandler extends BaseHandler {
     register(socket: Socket): void {
@@ -89,6 +91,14 @@ export class LudoHandler extends BaseHandler {
             players: engine.getPlayers(),
         });
 
+        // Start playtime tracking for all users in the room
+        const sockets = socketManager.getRoomSockets(code);
+        sockets.forEach(s => {
+            if (s.data.userId) {
+                playtimeTracker.startSession(s.data.userId);
+            }
+        });
+
         console.log(`🎲 Ludo game started in room ${code}`);
     }
 
@@ -107,7 +117,7 @@ export class LudoHandler extends BaseHandler {
 
         // Verify this is a Ludo game
         if (engine.getGameType() !== 'ludo') {
-            return; 
+            return;
         }
 
         const sessionId = socket.data.sessionId;
@@ -191,6 +201,14 @@ export class LudoHandler extends BaseHandler {
 
             // Clean up game from store
             gameStore.deleteGame(code);
+
+            // STOP TRACKING FOR ALL PLAYERS
+            const sockets = socketManager.getRoomSockets(code);
+            sockets.forEach(s => {
+                if (s.data.userId) {
+                    playtimeTracker.endSession(s.data.userId);
+                }
+            });
 
             this.emitToRoom(code, SOCKET_EVENTS.GAME_WINNER, {
                 winner: leaderboard[0], // Keep for backward compatibility if frontend uses it
