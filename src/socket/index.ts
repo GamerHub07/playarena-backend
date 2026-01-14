@@ -17,9 +17,32 @@ export const initializeSocket = (httpServer: HttpServer): SocketServer => {
     // Initialize the socket manager
     const io = socketManager.initialize(httpServer);
 
+    // Middleware for Authentication
+    io.use((socket: Socket, next) => {
+        const token = socket.handshake.auth.token;
+
+        if (token) {
+            try {
+                // Verify token (simple verify without database lookup for speed)
+                // We assume the token is valid if it verifies against the secret
+                // In production, we might want to check if user still exists in DB, 
+                // but for socket performance, JWT verification is usually enough.
+                const jwt = require('jsonwebtoken');
+                const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret');
+                socket.data.userId = decoded.id;
+                console.log(`🔑 Authenticated socket connection for user: ${decoded.id}`);
+            } catch (err) {
+                console.log('⚠️ Invalid token provided for socket connection');
+                // We allow connection even if token is invalid, they just won't be "logged in"
+                // Alternatively, we could return next(new Error('Authentication error'));
+            }
+        }
+        next();
+    });
+
     // Handle new connections
     io.on(SOCKET_EVENTS.CONNECTION, (socket: Socket) => {
-        console.log(`🎮 Player connected: ${socket.id}`);
+        console.log(`🎮 Player connected: ${socket.id} ${socket.data.userId ? '(Authenticated)' : '(Guest)'}`);
 
         // Register all handlers for this socket
         registerHandlers(socket);

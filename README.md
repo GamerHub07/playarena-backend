@@ -48,3 +48,5 @@ src/
 | `MONGODB_URI` | MongoDB connection string | `mongodb://localhost:27017/playarena` |
 | `CORS_ORIGIN` | Allowed CORS origin | `http://localhost:3000` |
 | `JWT_SECRET` | JWT signing secret | - |
+
+

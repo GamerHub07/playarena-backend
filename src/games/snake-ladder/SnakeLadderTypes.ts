@@ -76,38 +76,26 @@ export interface DiceRollResult {
 // BOARD CONFIGURATION
 // ═══════════════════════════════════════════════════════════════
 
-/**
- * Standard Snake & Ladder board configuration
- * Key = head position, Value = tail position (moves DOWN)
- */
+// Board configuration - snakes (head → tail)
 export const SNAKES: Record<number, number> = {
-    16: 6,
-    47: 26,
-    49: 11,
-    56: 53,
-
-    64: 60,
-    87: 24,
-    93: 73,
-    95: 75,
-    98: 78,
-    99: 2,
+    98: 40, // Super Punishment
+    87: 66, // Late annoyance
+    84: 58, // Upper setback
+    73: 15, // Disaster
+    56: 8,  // Early reset
+    49: 30, // Minor setback
+    33: 6,  // Start setback
+    23: 2,  // Very early setback
 };
 
-/**
- * Ladder configuration
- * Key = bottom position, Value = top position (moves UP)
- */
+// Ladders (bottom → top)
 export const LADDERS: Record<number, number> = {
-    3: 38,
-    7: 17,
-    9: 31,
-    21: 42,
-    28: 84,
-    36: 44,
-    51: 67,
-    71: 91,
-    80: 97,
+    4: 25,  // Start boost
+    21: 39, // Mid boost
+    29: 74, // Huge mid-game boost
+    43: 76, // Upper mid boost
+    63: 80, // Late game help
+    71: 89, // End game boost
 };
 
 // ═══════════════════════════════════════════════════════════════
