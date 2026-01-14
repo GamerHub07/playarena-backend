@@ -81,9 +81,14 @@ export class RoomHandler extends BaseHandler {
         if (room.status === 'playing') {
             const engine = gameStore.getGame(code);
             if (engine) {
-                // Send game state only to the rejoining player
+                // Use generic method - works for ALL game types
+                // Each game engine can customize what state to return
+                // (e.g., Poker hides opponent cards, other games return full state)
+                const { state, availableActions } = engine.getStateForPlayer(sessionId);
+
                 socket.emit(SOCKET_EVENTS.GAME_STATE, {
-                    state: engine.getState(),
+                    state,
+                    availableActions,
                     reconnected: true, // Flag to indicate this is a reconnection
                 });
 
