@@ -172,6 +172,24 @@ class SocketManager {
         const normalizedCode = roomCode.toUpperCase();
         return this.rooms.get(normalizedCode)?.sockets.size || 0;
     }
+
+    /**
+     * Get all socket instances in a room
+     */
+    getRoomSockets(roomCode: string): Socket[] {
+        const normalizedCode = roomCode.toUpperCase();
+        const roomConnection = this.rooms.get(normalizedCode);
+        if (!roomConnection) return [];
+
+        const sockets: Socket[] = [];
+        roomConnection.sockets.forEach(socketId => {
+            const socket = this.io?.sockets.sockets.get(socketId);
+            if (socket) {
+                sockets.push(socket);
+            }
+        });
+        return sockets;
+    }
 }
 
 // Export singleton instance

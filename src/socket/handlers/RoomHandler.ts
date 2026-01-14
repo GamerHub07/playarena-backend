@@ -11,6 +11,7 @@ import { JoinRoomPayload } from '../types';
 import Room from '../../models/Room';
 import { gameStore } from '../../services/gameStore';
 import { turnTimer } from '../../services/turnTimer';
+import { playtimeTracker } from '../../services/playtimeTracker';
 
 export class RoomHandler extends BaseHandler {
     register(socket: Socket): void {
@@ -89,6 +90,11 @@ export class RoomHandler extends BaseHandler {
                 // Clear any turn timer for this player since they reconnected
                 turnTimer.onPlayerReconnected(code, sessionId);
 
+                // START TRACKING PLAYTIME (if authenticated)
+                if (socket.data.userId) {
+                    playtimeTracker.startSession(socket.data.userId);
+                }
+
                 console.log(`🔄 ${username} reconnected to in-progress game in room ${code}`);
             }
         }
@@ -129,6 +135,11 @@ export class RoomHandler extends BaseHandler {
                 if (room.status === 'playing') {
                     turnTimer.checkCurrentPlayerConnection(roomCode);
                 }
+            }
+
+            // STOP TRACKING PLAYTIME (if authenticated)
+            if (socket.data.userId) {
+                await playtimeTracker.endSession(socket.data.userId);
             }
 
             console.log(`👋 Player ${sessionId} disconnected from room ${roomCode}`);

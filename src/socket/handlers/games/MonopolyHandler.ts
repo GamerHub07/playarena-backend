@@ -10,6 +10,8 @@ import { GameActionPayload, GameStartPayload } from '../../types';
 import { MonopolyEngine } from '../../../games/monopoly';
 import Room from '../../../models/Room';
 import { gameStore } from '../../../services/gameStore';
+import { playtimeTracker } from '../../../services/playtimeTracker';
+import { socketManager } from '../../SocketManager';
 
 export class MonopolyHandler extends BaseHandler {
     register(socket: Socket): void {
@@ -81,6 +83,14 @@ export class MonopolyHandler extends BaseHandler {
             players: engine.getPlayers(),
         });
 
+        // Start playtime tracking for all users in the room
+        const sockets = socketManager.getRoomSockets(code);
+        sockets.forEach(s => {
+            if (s.data.userId) {
+                playtimeTracker.startSession(s.data.userId);
+            }
+        });
+
         console.log(`🎯 Monopoly game started in room ${code}`);
     }
 
@@ -124,7 +134,7 @@ export class MonopolyHandler extends BaseHandler {
                 const players = engine.getPlayers();
                 const state = engine.getState();
                 const winnerIndex = engine.getWinner();
-                
+
                 const leaderboard: Array<{ position: number, username: string, sessionId: string, rank: number }> = [];
                 let rankCounter = 1;
 
@@ -136,23 +146,23 @@ export class MonopolyHandler extends BaseHandler {
                 } : null;
 
                 if (winner) {
-                     leaderboard.push({ ...winner, rank: rankCounter++ });
+                    leaderboard.push({ ...winner, rank: rankCounter++ });
                 }
 
                 // 2. Add Bankrupt players (Last out = Rank 2, First out = Last Rank)
                 // bankruptcyOrder is [FirstOut, SecondOut... LastOut]
                 // We want to reverse it to get [LastOut, SecondOut... FirstOut]
                 const reversedBankruptcy = [...state.bankruptcyOrder].reverse();
-                
+
                 reversedBankruptcy.forEach(sid => {
                     const pIndex = players.findIndex(p => p.sessionId === sid);
                     if (pIndex !== -1) {
-                         leaderboard.push({
+                        leaderboard.push({
                             position: pIndex,
                             username: players[pIndex].username,
                             sessionId: sid,
                             rank: rankCounter++
-                         });
+                        });
                     }
                 });
 
@@ -160,6 +170,14 @@ export class MonopolyHandler extends BaseHandler {
 
                 // Clean up game from store
                 gameStore.deleteGame(code);
+
+                // STOP TRACKING FOR ALL PLAYERS
+                const sockets = socketManager.getRoomSockets(code);
+                sockets.forEach(s => {
+                    if (s.data.userId) {
+                        playtimeTracker.endSession(s.data.userId);
+                    }
+                });
 
                 this.emitToRoom(code, SOCKET_EVENTS.GAME_WINNER, { winner, leaderboard });
 
