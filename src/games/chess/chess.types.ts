@@ -20,7 +20,8 @@ export type ChessBoard = BoardSquare[][]; // 8x8
 export interface ChessMove {
   from: string; // e.g. "e2"
   to: string;   // e.g. "e4"
-  promotion?: "q" | "r" | "b" | "n"; // chess.js format
+  san?: string; // Standard Algebraic Notation (e.g., "Nf3", "O-O")
+  promotion?: string; // Promotion piece if any
 }
 
 export type ChessGameStatus =
