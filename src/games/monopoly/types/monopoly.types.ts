@@ -32,6 +32,18 @@ export interface DrawnCard {
   text: string;
 }
 
+export interface TradeOffer {
+  id: string;
+  fromPlayerId: string;
+  toPlayerId: string;
+  offeringProperties: string[];  // Property IDs being offered
+  offeringCash: number;
+  requestingProperties: string[];  // Property IDs being requested
+  requestingCash: number;
+  status: 'pending' | 'accepted' | 'rejected' | 'cancelled';
+  createdAt: number;
+}
+
 export type GameLogType = 
   | 'PASS_GO'           // Collected $200 passing GO
   | 'RENT_PAID'         // Paid rent to another player
@@ -44,9 +56,14 @@ export type GameLogType =
   | 'CARD_PAY'          // Paid money from card
   | 'CARD_TRANSFER'     // Transferred money (from/to other players via card)
   | 'HOUSE_BUILT'       // Built a house
-  | 'HOTEL_BUILT'      // Built a hotel
-  | 'JAIL_RELEASE'     // Released from jail
-  | 'JAIL_STAY';       // Turned in jail
+  | 'HOTEL_BUILT'       // Built a hotel
+  | 'HOUSE_SOLD'        // Sold a house
+  | 'TRADE_PROPOSED'    // Trade offer proposed
+  | 'TRADE_ACCEPTED'    // Trade accepted
+  | 'TRADE_REJECTED'    // Trade rejected
+  | 'TRADE_CANCELLED'   // Trade cancelled
+  | 'JAIL_RELEASE'      // Released from jail
+  | 'JAIL_STAY';        // Turned in jail
 
 export interface GameLogEntry {
   id: string;
@@ -71,4 +88,5 @@ export interface MonopolyGameState {
   doublesCount: number; // Track consecutive doubles (3 = jail)
   gameLog: GameLogEntry[]; // Transaction log for money flow
   bankruptcyOrder: string[]; // sessionIds of eliminated players (in order of elimination)
+  pendingTrades: TradeOffer[]; // Active trade offers
 }

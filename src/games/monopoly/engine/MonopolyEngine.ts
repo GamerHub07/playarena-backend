@@ -3,11 +3,12 @@ import { BOARD } from "../data/board";
 import {
   MonopolyGameState,
   MonopolyPlayerState,
+  TradeOffer,
 } from "../types/monopoly.types";
 import { assertPlayersTurn } from "./RuleValidator";
 import { resolveSquare } from "./BoardResolver";
 import { advanceTurn } from "./TurnManager";
-import { logPassGo, logJailFine, logPropertyBought, logPropertySold, logHouseBuilt, logHotelBuilt, logJailStay, logJailRelease } from "./GameLogger";
+import { logPassGo, logJailFine, logPropertyBought, logPropertySold, logHouseBuilt, logHotelBuilt, logHouseSold, logJailStay, logJailRelease, logTradeProposed, logTradeAccepted, logTradeRejected, logTradeCancelled } from "./GameLogger";
 
 export class MonopolyEngine extends GameEngine<MonopolyGameState> {
   getGameType(): string {
@@ -32,6 +33,7 @@ export class MonopolyEngine extends GameEngine<MonopolyGameState> {
       doublesCount: 0,
       gameLog: [],
       bankruptcyOrder: [],
+      pendingTrades: [],
     };
   }
 
@@ -55,7 +57,11 @@ export class MonopolyEngine extends GameEngine<MonopolyGameState> {
   handleAction(playerId: string, action: string, payload: unknown) {
     const orderedPlayers = this.players.map((p) => p.sessionId);
 
-    assertPlayersTurn(playerId, this.state, orderedPlayers);
+    // Trade actions can happen anytime, no turn check needed
+    const noTurnCheckActions = ['PROPOSE_TRADE', 'ACCEPT_TRADE', 'REJECT_TRADE', 'CANCEL_TRADE'];
+    if (!noTurnCheckActions.includes(action)) {
+      assertPlayersTurn(playerId, this.state, orderedPlayers);
+    }
 
     const player = this.state.playerState[playerId];
 
@@ -289,9 +295,204 @@ export class MonopolyEngine extends GameEngine<MonopolyGameState> {
         // Don't change phase - player can keep building or take other actions
         break;
       }
+
+      case "SELL_HOUSE": {
+        const { propertyId: sellHousePropertyId } = payload as { propertyId: string };
+        const sellHouseSquare = this.state.board.find(s => s.id === sellHousePropertyId);
+
+        if (!sellHouseSquare || sellHouseSquare.type !== "PROPERTY") {
+          throw new Error("Invalid property");
+        }
+
+        if (sellHouseSquare.owner !== playerId) {
+          throw new Error("You don't own this property");
+        }
+
+        const currentHouses = sellHouseSquare.houses ?? 0;
+        if (currentHouses === 0) {
+          throw new Error("No houses to sell");
+        }
+
+        // Check even building rule - can only sell if this property has the most houses in the color group
+        const colorProps = this.state.board.filter(
+          s => s.type === "PROPERTY" && s.color === sellHouseSquare.color
+        );
+        const maxHouses = Math.max(...colorProps.map(p => p.houses ?? 0));
+        if (currentHouses < maxHouses) {
+          throw new Error("Must sell houses evenly - sell from properties with more houses first");
+        }
+
+        // Sell house at half price
+        const houseCost = sellHouseSquare.houseCost ?? 0;
+        const salePrice = Math.floor(houseCost / 2);
+        player.cash += salePrice;
+        sellHouseSquare.houses = currentHouses - 1;
+        logHouseSold(this.state, playerId, salePrice, sellHouseSquare.name || sellHouseSquare.id);
+
+        // If in DEBT phase, check if debt is resolved
+        if (this.state.phase === "DEBT") {
+          if (player.cash >= 0) {
+            const isDoubles = this.state.dice && this.state.dice[0] === this.state.dice[1];
+            this.state.phase = isDoubles ? "ROLL" : "END_TURN";
+          }
+        }
+        break;
+      }
+
       case "END_TURN":
         advanceTurn(this.state, orderedPlayers);
         break;
+
+      case "PROPOSE_TRADE": {
+        const { toPlayerId, offeringProperties, offeringCash, requestingProperties, requestingCash } = payload as {
+          toPlayerId: string;
+          offeringProperties: string[];
+          offeringCash: number;
+          requestingProperties: string[];
+          requestingCash: number;
+        };
+
+        const targetPlayer = this.state.playerState[toPlayerId];
+        if (!targetPlayer || targetPlayer.bankrupt) {
+          throw new Error("Target player not found or is bankrupt");
+        }
+
+        // Validate offering player owns the properties
+        for (const propId of offeringProperties) {
+          if (!player.properties.includes(propId)) {
+            throw new Error("You don't own a property you're trying to trade");
+          }
+          const square = this.state.board.find(s => s.id === propId);
+          if (square && (square.houses ?? 0) > 0) {
+            throw new Error("Cannot trade properties with houses. Sell houses first.");
+          }
+        }
+
+        // Validate target player owns requested properties
+        for (const propId of requestingProperties) {
+          if (!targetPlayer.properties.includes(propId)) {
+            throw new Error("Target player doesn't own a property you're requesting");
+          }
+          const square = this.state.board.find(s => s.id === propId);
+          if (square && (square.houses ?? 0) > 0) {
+            throw new Error("Cannot trade properties with houses. They must sell houses first.");
+          }
+        }
+
+        // Validate cash amounts
+        if (offeringCash > player.cash) {
+          throw new Error("You don't have enough cash to offer");
+        }
+
+        // Remove any existing pending trade between these players
+        this.state.pendingTrades = this.state.pendingTrades.filter(
+          t => !(t.fromPlayerId === playerId && t.toPlayerId === toPlayerId && t.status === 'pending')
+        );
+
+        // Create new trade offer
+        const tradeOffer: TradeOffer = {
+          id: `trade_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          fromPlayerId: playerId,
+          toPlayerId,
+          offeringProperties,
+          offeringCash,
+          requestingProperties,
+          requestingCash,
+          status: 'pending',
+          createdAt: Date.now(),
+        };
+
+        this.state.pendingTrades.push(tradeOffer);
+        logTradeProposed(this.state, playerId, toPlayerId);
+        break;
+      }
+
+      case "ACCEPT_TRADE": {
+        const { tradeId } = payload as { tradeId: string };
+        const trade = this.state.pendingTrades.find(t => t.id === tradeId && t.status === 'pending');
+        
+        if (!trade) {
+          throw new Error("Trade not found or already processed");
+        }
+
+        if (trade.toPlayerId !== playerId) {
+          throw new Error("You can only accept trades sent to you");
+        }
+
+        const fromPlayer = this.state.playerState[trade.fromPlayerId];
+        const toPlayer = this.state.playerState[trade.toPlayerId];
+
+        if (!fromPlayer || fromPlayer.bankrupt || !toPlayer || toPlayer.bankrupt) {
+          throw new Error("One of the players is no longer valid");
+        }
+
+        // Validate cash availability
+        if (fromPlayer.cash < trade.offeringCash) {
+          throw new Error("Proposer no longer has enough cash");
+        }
+        if (toPlayer.cash < trade.requestingCash) {
+          throw new Error("You don't have enough cash");
+        }
+
+        // Execute trade - swap properties
+        for (const propId of trade.offeringProperties) {
+          fromPlayer.properties = fromPlayer.properties.filter(p => p !== propId);
+          toPlayer.properties.push(propId);
+          const square = this.state.board.find(s => s.id === propId);
+          if (square) square.owner = trade.toPlayerId;
+        }
+
+        for (const propId of trade.requestingProperties) {
+          toPlayer.properties = toPlayer.properties.filter(p => p !== propId);
+          fromPlayer.properties.push(propId);
+          const square = this.state.board.find(s => s.id === propId);
+          if (square) square.owner = trade.fromPlayerId;
+        }
+
+        // Swap cash
+        fromPlayer.cash -= trade.offeringCash;
+        toPlayer.cash += trade.offeringCash;
+        toPlayer.cash -= trade.requestingCash;
+        fromPlayer.cash += trade.requestingCash;
+
+        trade.status = 'accepted';
+        logTradeAccepted(this.state, trade.fromPlayerId, trade.toPlayerId);
+        break;
+      }
+
+      case "REJECT_TRADE": {
+        const { tradeId: rejectTradeId } = payload as { tradeId: string };
+        const rejectTrade = this.state.pendingTrades.find(t => t.id === rejectTradeId && t.status === 'pending');
+        
+        if (!rejectTrade) {
+          throw new Error("Trade not found or already processed");
+        }
+
+        if (rejectTrade.toPlayerId !== playerId) {
+          throw new Error("You can only reject trades sent to you");
+        }
+
+        rejectTrade.status = 'rejected';
+        logTradeRejected(this.state, rejectTrade.fromPlayerId, rejectTrade.toPlayerId);
+        break;
+      }
+
+      case "CANCEL_TRADE": {
+        const { tradeId: cancelTradeId } = payload as { tradeId: string };
+        const cancelTrade = this.state.pendingTrades.find(t => t.id === cancelTradeId && t.status === 'pending');
+        
+        if (!cancelTrade) {
+          throw new Error("Trade not found or already processed");
+        }
+
+        if (cancelTrade.fromPlayerId !== playerId) {
+          throw new Error("You can only cancel trades you proposed");
+        }
+
+        cancelTrade.status = 'cancelled';
+        logTradeCancelled(this.state, playerId);
+        break;
+      }
 
       case "BANKRUPT": {
         player.bankrupt = true;
