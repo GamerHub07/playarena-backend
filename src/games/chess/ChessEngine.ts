@@ -157,9 +157,11 @@ export class ChessEngine extends GameEngine<ChessGameState> {
       turn: this.chess.turn() === "w" ? "white" : "black",
       status,
       winner,
-      moveHistory: this.chess.history().map((m: string) => ({
-        from: m.slice(0, 2),
-        to: m.slice(2, 4),
+      moveHistory: this.chess.history({ verbose: true }).map((m) => ({
+        from: m.from,
+        to: m.to,
+        san: m.san,
+        promotion: m.promotion,
       })),
       playerColors: Object.fromEntries(this.playerColorMap),
     };
