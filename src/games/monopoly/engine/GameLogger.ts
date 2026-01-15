@@ -193,6 +193,20 @@ export function logHotelBuilt(
   });
 }
 
+/**
+ * Log house sold
+ */
+export function logHouseSold(
+  state: MonopolyGameState,
+  playerId: string,
+  amount: number,
+  propertyName: string
+): void {
+  addLog(state, 'HOUSE_SOLD', playerId, amount, `Sold house on ${propertyName} for ₹${amount}`, {
+    propertyName,
+  });
+}
+
 export function logJailStay(
   state: MonopolyGameState,
   playerId: string
@@ -226,4 +240,56 @@ export function logJailRelease(
     timestamp: Date.now(),
   };
   state.gameLog.push(entry);
+}
+
+/**
+ * Log trade proposed
+ */
+export function logTradeProposed(
+  state: MonopolyGameState,
+  fromPlayerId: string,
+  toPlayerId: string
+): void {
+  const fromPlayer = state.playerState[fromPlayerId];
+  const toPlayer = state.playerState[toPlayerId];
+  addLog(state, 'TRADE_PROPOSED', fromPlayerId, 0, `proposed a trade to ${toPlayer?.username}`, {
+    relatedPlayerId: toPlayerId,
+  });
+}
+
+/**
+ * Log trade accepted
+ */
+export function logTradeAccepted(
+  state: MonopolyGameState,
+  fromPlayerId: string,
+  toPlayerId: string
+): void {
+  const toPlayer = state.playerState[toPlayerId];
+  addLog(state, 'TRADE_ACCEPTED', toPlayerId, 0, `accepted trade from ${state.playerState[fromPlayerId]?.username}`, {
+    relatedPlayerId: fromPlayerId,
+  });
+}
+
+/**
+ * Log trade rejected
+ */
+export function logTradeRejected(
+  state: MonopolyGameState,
+  fromPlayerId: string,
+  toPlayerId: string
+): void {
+  addLog(state, 'TRADE_REJECTED', toPlayerId, 0, `rejected trade from ${state.playerState[fromPlayerId]?.username}`, {
+    relatedPlayerId: fromPlayerId,
+  });
+}
+
+/**
+ * Log trade cancelled
+ */
+export function logTradeCancelled(
+  state: MonopolyGameState,
+  playerId: string
+): void {
+  addLog(state, 'TRADE_CANCELLED', playerId, 0, 'cancelled their trade offer');
 }
