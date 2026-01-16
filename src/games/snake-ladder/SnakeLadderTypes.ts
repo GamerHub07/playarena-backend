@@ -14,7 +14,7 @@ export interface SnakeLadderGameState {
     currentPlayer: number;
     diceValue: number | null;
     lastRoll: number | null;
-    turnPhase: 'roll' | 'wait';
+    turnPhase: 'roll' | 'move' | 'animating' | 'wait';
     winner: number | null;
     moveHistory: SnakeLadderMove[];
     /** Track if current player can roll again (rolled 6) */

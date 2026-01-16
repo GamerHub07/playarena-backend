@@ -132,8 +132,8 @@ export class SnakeLadderHandler extends BaseHandler {
                 lastAction: { action, by: sessionId },
             });
 
-            // For roll actions, emit animation steps
-            if (action === 'roll') {
+            // For move actions, emit animation steps (movement now happens on 'move', not 'roll')
+            if (action === 'move') {
                 const lastMove = engine.getLastMove();
 
                 if (lastMove) {
