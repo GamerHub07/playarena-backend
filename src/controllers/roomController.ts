@@ -57,16 +57,7 @@ export const createRoom = async (req: Request, res: Response): Promise<void> => 
             code,
             gameType,
             players: [player],
-            maxPlayers:
-                gameType === 'ludo'
-                    ? 4
-                    : gameType === 'monopoly'
-                        ? 6
-                        : gameType === 'snake-ladder'
-                            ? 4
-                            : gameType === 'poker'
-                                ? 8
-                                : 2, // chess defaults to 2
+            maxPlayers: gameType === 'ludo' ? 4 : gameType === 'monopoly' ? 6 : gameType === 'snake-ladder' ? 4 : gameType === 'poker' ? 8 : gameType === 'memory' ? 1 : gameType === 'candy-chakachak' ? 1 : 4,
             minPlayers: 2,
         });
 
