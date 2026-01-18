@@ -10,11 +10,11 @@
 import { socketManager } from '../socket/SocketManager';
 import { SOCKET_EVENTS } from '../socket/events';
 import { gameStore } from './gameStore';
-import { LudoEngine } from '../games/ludo/LudoEngine';
+import { GameEngine } from '../games/base/GameEngine';
 import Room from '../models/Room';
 
-// Timeout duration in milliseconds (30 seconds)
-export const TURN_TIMEOUT_MS = 30000;
+// Timeout duration in milliseconds (15 seconds)
+export const TURN_TIMEOUT_MS = 15000;
 
 // Interval for sending countdown updates (every second)
 const COUNTDOWN_INTERVAL_MS = 1000;
@@ -137,7 +137,7 @@ class TurnTimerService {
 
     console.log(`⏱️ Turn timeout for player ${entry.playerIndex} in room ${roomCode}`);
 
-    const engine = gameStore.getGame(roomCode) as LudoEngine | undefined;
+    const engine = gameStore.getGame(roomCode);
     if (!engine) {
       console.log(`⏱️ No game found for room ${roomCode}, skipping timeout handling`);
       return;
@@ -148,10 +148,10 @@ class TurnTimerService {
       return;
     }
 
-    const state = engine.getState();
+    const currentPlayerIdx = engine.getCurrentPlayerIndex();
 
     // Verify it's still this player's turn
-    if (state.currentPlayer !== entry.playerIndex) {
+    if (currentPlayerIdx !== entry.playerIndex) {
       console.log(`⏱️ Player ${entry.playerIndex} is no longer current player, skipping`);
       return;
     }
@@ -191,7 +191,7 @@ class TurnTimerService {
         // Update room game state in database
         await Room.updateOne(
           { code: roomCode },
-          { gameState: newState, currentTurn: newState.currentPlayer }
+          { gameState: newState, currentTurn: engine.getCurrentPlayerIndex() }
         );
 
         // Check if game is over after elimination
@@ -235,7 +235,7 @@ class TurnTimerService {
       // Update room game state in database
       await Room.updateOne(
         { code: roomCode },
-        { gameState: newState, currentTurn: newState.currentPlayer }
+        { gameState: newState, currentTurn: engine.getCurrentPlayerIndex() }
       );
 
       console.log(`⏱️ Auto-played for player ${entry.playerIndex} in room ${roomCode} (${newAutoPlayCount}/${MAX_AUTO_PLAYS})`);
@@ -255,44 +255,53 @@ class TurnTimerService {
   /**
    * Handle game over after auto-play
    */
-  private async handleGameOver(roomCode: string, engine: LudoEngine): Promise<void> {
-    const state = engine.getState();
+  private async handleGameOver(roomCode: string, engine: GameEngine): Promise<void> {
+    const state = engine.getState() as any; // Cast to any to access finishedPlayers if available
     const players = engine.getPlayers();
     const leaderboard: Array<{ position: number, username: string, sessionId: string, rank: number }> = [];
 
-    // Add finished players
-    state.finishedPlayers.forEach((playerIndex, idx) => {
-      const p = players[playerIndex];
-      leaderboard.push({
-        position: playerIndex,
-        username: p.username,
-        sessionId: p.sessionId,
-        rank: idx + 1,
+    // Add finished players (Ludo conceptual logic, applicable if game has it)
+    if (state.finishedPlayers) {
+      state.finishedPlayers.forEach((playerIndex: number, idx: number) => {
+        const p = players.find(pl => pl.position === playerIndex) || players[playerIndex];
+        if (p) {
+          leaderboard.push({
+            position: playerIndex,
+            username: p.username,
+            sessionId: p.sessionId,
+            rank: idx + 1,
+          });
+        }
       });
-    });
+    }
 
-    // Add remaining players
-    Object.entries(players).forEach(([idxStr, p]) => {
-      const idx = parseInt(idxStr);
-      if (!state.finishedPlayers.includes(idx)) {
+    // Determine winner purely from engine if leaderboard is empty
+    const winnerIdx = engine.getWinner();
+
+    // Fallback leaderboard generation
+    players.forEach((p, idx) => {
+      const pIndex = p.position !== undefined ? p.position : idx;
+      if (!leaderboard.some(l => l.position === pIndex)) {
         leaderboard.push({
-          position: idx,
+          position: pIndex,
           username: p.username,
           sessionId: p.sessionId,
-          rank: leaderboard.length + 1,
+          rank: winnerIdx === pIndex ? 1 : leaderboard.length + 1
         });
       }
     });
+
+    // Sort logic handled by specific games usually, but here we just ensure we have something
 
     await Room.updateOne({ code: roomCode }, { status: 'finished' });
     gameStore.deleteGame(roomCode);
 
     socketManager.emitToRoom(roomCode, SOCKET_EVENTS.GAME_WINNER, {
-      winner: leaderboard[0],
+      winner: leaderboard.find(l => l.rank === 1) || leaderboard[0],
       leaderboard,
     });
 
-    console.log(`🏆 Game finished in room ${roomCode} (via timeout). Winner: ${leaderboard[0].username}`);
+    console.log(`🏆 Game finished in room ${roomCode} (via timeout). Winner: ${leaderboard[0]?.username}`);
   }
 
   /**
@@ -301,13 +310,16 @@ class TurnTimerService {
   async checkCurrentPlayerConnection(roomCode: string): Promise<void> {
     const normalizedCode = roomCode.toUpperCase();
 
-    const engine = gameStore.getGame(normalizedCode) as LudoEngine | undefined;
+    const engine = gameStore.getGame(normalizedCode);
     if (!engine || engine.isGameOver()) return;
 
-    const state = engine.getState();
-    const currentPlayerIndex = state.currentPlayer;
+    const currentPlayerIndex = engine.getCurrentPlayerIndex();
     const players = engine.getPlayers();
-    const currentPlayer = players[currentPlayerIndex];
+
+    // Need to find player object. 
+    // In Ludo: players is array, index matches.
+    // In Poker: players is array, but position property matters.
+    const currentPlayer = players.find(p => p.position === currentPlayerIndex) || players[currentPlayerIndex];
 
     if (!currentPlayer) return;
 
