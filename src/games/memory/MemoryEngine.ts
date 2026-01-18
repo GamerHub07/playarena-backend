@@ -32,6 +32,25 @@ export class MemoryEngine extends GameEngine<MemoryState> {
         return this.state.isComplete ? 0 : null;
     }
 
+    getCurrentPlayerIndex(): number {
+        return 0;
+    }
+
+    autoPlay(playerIndex: number): MemoryState {
+        const availableCards = this.state.cards.filter(c => !c.isMatched && !c.isFlipped);
+        if (availableCards.length > 0) {
+            const randomCard = availableCards[Math.floor(Math.random() * availableCards.length)];
+            return this.flipCard(randomCard.id);
+        }
+        return this.state;
+    }
+
+    eliminatePlayer(playerIndex: number): void {
+        if (playerIndex === 0) {
+            this.state.isComplete = true;
+        }
+    }
+
     handleAction(playerId: string, action: string, payload: unknown): MemoryState {
         switch (action) {
             case 'flip':

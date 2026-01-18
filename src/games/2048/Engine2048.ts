@@ -33,6 +33,23 @@ export class Engine2048 extends GameEngine<Game2048State> {
         return this.state.won ? 0 : null;
     }
 
+    getCurrentPlayerIndex(): number {
+        return 0; // Single player game, always player 0
+    }
+
+    autoPlay(playerIndex: number): Game2048State {
+        void playerIndex;
+        // Make a random move if forced to autoplay to keep game alive or end it naturally
+        const directions: Direction[] = ['up', 'down', 'left', 'right'];
+        const randomDir = directions[Math.floor(Math.random() * directions.length)];
+        return this.move(randomDir);
+    }
+
+    eliminatePlayer(playerIndex: number): void {
+        void playerIndex;
+        this.state.gameOver = true;
+    }
+
     handleAction(playerId: string, action: string, payload: unknown): Game2048State {
         if (this.state.gameOver && action !== 'restart') return this.state;
 

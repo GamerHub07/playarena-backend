@@ -35,6 +35,18 @@ export class CandyEngine extends GameEngine<CandyState> {
         return this.state.isComplete && this.state.score >= this.state.targetScore ? 0 : null;
     }
 
+    getCurrentPlayerIndex(): number {
+        return 0;
+    }
+
+    autoPlay(playerIndex: number): CandyState {
+        return this.state;
+    }
+
+    eliminatePlayer(playerIndex: number): void {
+        this.state.isComplete = true; // For single player, eliminating acts as giving up/game over
+    }
+
     handleAction(playerId: string, action: string, payload: unknown): CandyState {
         if (this.state.isComplete && action !== 'restart') return this.state;
 

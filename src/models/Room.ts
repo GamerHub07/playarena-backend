@@ -1,6 +1,6 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
-export type GameType = 'ludo' | 'chess' | 'snake-ladder' | 'monopoly' | 'poker' | '2048' | 'sudoku' |'tictactoe';
+export type GameType = 'ludo' | 'chess' | 'snake-ladder' | 'monopoly' | 'poker' | '2048' | 'sudoku' | 'tictactoe' | 'memory' | 'candy-chakachak';
 
 
 export type RoomStatus = 'waiting' | 'playing' | 'finished';
