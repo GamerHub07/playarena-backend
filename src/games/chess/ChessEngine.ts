@@ -72,6 +72,12 @@ export class ChessEngine extends GameEngine<ChessGameState> {
         const winnerColor = abortingPlayerColor === "white" ? "black" : "white";
         this.state = { ...this.buildState(), status: "checkmate", winner: winnerColor };
         return this.state;
+      case "resign":
+        // Opponent of resigning player wins
+        const resigningPlayerColor = this.playerColorMap.get(playerId);
+        const resignWinnerColor = resigningPlayerColor === "white" ? "black" : "white";
+        this.state = { ...this.buildState(), status: "checkmate", winner: resignWinnerColor };
+        return this.state;
       default:
         console.log(`❌ Unknown action: ${action}`);
         return this.state;

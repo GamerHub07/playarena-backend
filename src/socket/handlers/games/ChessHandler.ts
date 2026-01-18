@@ -78,6 +78,19 @@ export class ChessHandler extends BaseHandler {
                     return;
                 }
 
+                if (action === "resign") {
+                    const newState = game.handleAction(sessionId, action, payload);
+                    this.emitToRoom(code, "game:resigned", {
+                        by: username || "Player",
+                        state: newState
+                    });
+                    this.emitToRoom(code, "game:state", { state: newState });
+                    if (game.isGameOver()) {
+                        this.emitToRoom(code, "game:winner", { state: newState });
+                    }
+                    return;
+                }
+
                 if (action === "offerRematch") {
                     this.emitToRoom(code, "game:rematchOffer", {
                         from: sessionId,
