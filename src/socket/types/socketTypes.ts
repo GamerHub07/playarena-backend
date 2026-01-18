@@ -40,9 +40,10 @@ export interface GameStartPayload {
 
 export interface GameActionPayload {
     roomCode: string;
-    action: 'roll' | 'move';
+    action: 'roll' | 'move' | 'restart';
     data?: {
         tokenIndex?: number;
+        cellIndex?: number;  // For Tic Tac Toe moves
     };
 }
 

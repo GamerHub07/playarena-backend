@@ -6,7 +6,7 @@
 import { Server as SocketServer, Socket } from 'socket.io';
 import { Server as HttpServer } from 'http';
 import { socketManager } from './SocketManager';
-import { RoomHandler, LudoHandler, MonopolyHandler, SnakeLadderHandler, PokerHandler } from './handlers';
+import { RoomHandler, LudoHandler, MonopolyHandler, SnakeLadderHandler, PokerHandler, TicTacToeHandler } from './handlers';
 import { featureFlags } from '../config/featureFlags';
 
 
@@ -81,6 +81,10 @@ function registerHandlers(socket: Socket): void {
     // Add more game handlers here as needed:
     // const chessHandler = new ChessHandler();
     // chessHandler.register(socket);
+
+    // Tic Tac Toe game events
+    const tictactoeHandler = new TicTacToeHandler();
+    tictactoeHandler.register(socket);
 }
 
 // Re-export for convenience

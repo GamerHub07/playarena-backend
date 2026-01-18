@@ -137,18 +137,29 @@ class TurnTimerService {
 
     console.log(`⏱️ Turn timeout for player ${entry.playerIndex} in room ${roomCode}`);
 
-    const engine = gameStore.getGame(roomCode) as LudoEngine | undefined;
+    const engine = gameStore.getGame(roomCode);
     if (!engine) {
       console.log(`⏱️ No game found for room ${roomCode}, skipping timeout handling`);
       return;
     }
 
-    // Check if game is still in progress
-    if (engine.isGameOver()) {
+    // Only handle auto-play for games that support it (Ludo, Snake-Ladder)
+    // Tic Tac Toe doesn't use auto-play timeouts
+    const gameType = engine.getGameType();
+    if (gameType === 'tictactoe') {
+      console.log(`⏱️ Skipping auto-play for ${gameType} game in room ${roomCode}`);
       return;
     }
 
-    const state = engine.getState();
+    // Cast to LudoEngine for games that support auto-play
+    const ludoEngine = engine as LudoEngine;
+
+    // Check if game is still in progress
+    if (ludoEngine.isGameOver()) {
+      return;
+    }
+
+    const state = ludoEngine.getState();
 
     // Verify it's still this player's turn
     if (state.currentPlayer !== entry.playerIndex) {
@@ -165,9 +176,9 @@ class TurnTimerService {
         console.log(`⏱️ Player ${entry.playerIndex} exceeded max auto-plays (${MAX_AUTO_PLAYS}), eliminating from game`);
 
         // Mark player as eliminated in the engine
-        engine.eliminatePlayer(entry.playerIndex);
+        ludoEngine.eliminatePlayer(entry.playerIndex);
 
-        const newState = engine.getState();
+        const newState = ludoEngine.getState();
 
         // Emit the updated state to all clients
         socketManager.emitToRoom(roomCode, SOCKET_EVENTS.GAME_STATE, {
@@ -195,8 +206,8 @@ class TurnTimerService {
         );
 
         // Check if game is over after elimination
-        if (engine.isGameOver()) {
-          await this.handleGameOver(roomCode, engine);
+        if (ludoEngine.isGameOver()) {
+          await this.handleGameOver(roomCode, ludoEngine);
         } else {
           // Check if the new current player is also disconnected
           await this.checkCurrentPlayerConnection(roomCode);
@@ -210,7 +221,7 @@ class TurnTimerService {
       const newAutoPlayCount = this.getAutoPlayCount(roomCode, entry.playerIndex);
 
       // Auto-play for the disconnected player
-      const newState = engine.autoPlay(entry.playerIndex);
+      const newState = ludoEngine.autoPlay(entry.playerIndex);
 
       // Emit the updated state to all clients
       socketManager.emitToRoom(roomCode, SOCKET_EVENTS.GAME_STATE, {
@@ -241,8 +252,8 @@ class TurnTimerService {
       console.log(`⏱️ Auto-played for player ${entry.playerIndex} in room ${roomCode} (${newAutoPlayCount}/${MAX_AUTO_PLAYS})`);
 
       // Check if game is over after auto-play
-      if (engine.isGameOver()) {
-        await this.handleGameOver(roomCode, engine);
+      if (ludoEngine.isGameOver()) {
+        await this.handleGameOver(roomCode, ludoEngine);
       } else {
         // Check if the new current player is also disconnected
         await this.checkCurrentPlayerConnection(roomCode);
@@ -301,10 +312,16 @@ class TurnTimerService {
   async checkCurrentPlayerConnection(roomCode: string): Promise<void> {
     const normalizedCode = roomCode.toUpperCase();
 
-    const engine = gameStore.getGame(normalizedCode) as LudoEngine | undefined;
+    const engine = gameStore.getGame(normalizedCode);
     if (!engine || engine.isGameOver()) return;
 
-    const state = engine.getState();
+    // Skip turn timer for games that don't support it
+    const gameType = engine.getGameType();
+    if (gameType === 'tictactoe') {
+      return;
+    }
+
+    const state = engine.getState() as { currentPlayer: number };
     const currentPlayerIndex = state.currentPlayer;
     const players = engine.getPlayers();
     const currentPlayer = players[currentPlayerIndex];
