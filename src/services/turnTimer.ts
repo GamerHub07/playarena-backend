@@ -143,10 +143,12 @@ class TurnTimerService {
       return;
     }
 
-    // Only handle auto-play for games that support it (Ludo, Snake-Ladder)
-    // Tic Tac Toe doesn't use auto-play timeouts
+    // Only handle auto-play for games that support it (Ludo, Snake-Ladder, Poker, Monopoly)
+    // Tic Tac Toe, Sudoku, etc don't use auto-play timeouts
     const gameType = engine.getGameType();
-    if (gameType === 'tictactoe') {
+    const NO_TIMER_GAMES = ['tictactoe', 'sudoku', '2048', 'memory', 'candy-chakachak', 'chess'];
+
+    if (NO_TIMER_GAMES.includes(gameType)) {
       console.log(`⏱️ Skipping auto-play for ${gameType} game in room ${roomCode}`);
       return;
     }
@@ -321,9 +323,11 @@ class TurnTimerService {
     const engine = gameStore.getGame(normalizedCode);
     if (!engine || engine.isGameOver()) return;
 
-    // Skip turn timer for games that don't support it
+    // Skip turn timer for games that don't support it or are single-player
     const gameType = engine.getGameType();
-    if (gameType === 'tictactoe') {
+    const NO_TIMER_GAMES = ['tictactoe', 'sudoku', '2048', 'memory', 'candy-chakachak', 'chess'];
+
+    if (NO_TIMER_GAMES.includes(gameType)) {
       return;
     }
 
