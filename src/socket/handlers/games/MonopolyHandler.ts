@@ -48,7 +48,8 @@ export class MonopolyHandler extends BaseHandler {
 
         // Check if game already exists (prevent duplicate starts)
         if (gameStore.hasGame(code)) {
-            return; // Game already started
+            // Force reset if starting again from waiting room
+            gameStore.deleteGame(code);
         }
 
         if (room.players.length < room.minPlayers) {

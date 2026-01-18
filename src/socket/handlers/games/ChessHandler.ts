@@ -157,8 +157,9 @@ export class ChessHandler extends BaseHandler {
 
         // Check if game already started (has players)
         if (engine && engine.getPlayers().length > 0) {
-            console.log(`♟️ Game already started in room ${code}`);
-            return; // Game already started
+            console.log(`♟️ Game restart requested for room ${code}`);
+            gameStore.deleteGame(code);
+            engine = undefined;
         }
 
         if (room.players.length < room.minPlayers) {

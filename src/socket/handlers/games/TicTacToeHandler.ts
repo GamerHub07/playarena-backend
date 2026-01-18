@@ -53,9 +53,11 @@ export class TicTacToeHandler extends BaseHandler {
             return; // Let another handler deal with it
         }
 
-        // Check if game already exists (prevent duplicate starts)
+        // Check if game already exists
         if (gameStore.hasGame(code)) {
-            return; // Game already started
+            // Force reset if starting again from waiting room
+            // This handles cases where a previous game instance was not cleaned up
+            gameStore.deleteGame(code);
         }
 
         // Check if sender is host
