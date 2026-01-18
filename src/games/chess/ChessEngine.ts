@@ -121,6 +121,41 @@ export class ChessEngine extends GameEngine<ChessGameState> {
     return this.state.winner === "white" ? 0 : 1;
   }
 
+  getCurrentPlayerIndex(): number {
+    const turn = this.chess.turn() === "w" ? "white" : "black";
+    return this.players.findIndex((p) => this.playerColorMap.get(p.sessionId) === turn);
+  }
+
+  autoPlay(playerIndex: number): ChessGameState {
+    // Only auto-play if it's actually this player's turn
+    if (playerIndex !== this.getCurrentPlayerIndex()) {
+      return this.state;
+    }
+
+    const moves = this.chess.moves();
+    if (moves.length > 0) {
+      const randomMove = moves[Math.floor(Math.random() * moves.length)];
+      this.chess.move(randomMove);
+      this.state = this.buildState();
+    }
+    return this.state;
+  }
+
+  eliminatePlayer(playerIndex: number): void {
+    if (playerIndex < 0 || playerIndex >= this.players.length) return;
+
+    const player = this.players[playerIndex];
+    const playerColor = this.playerColorMap.get(player.sessionId);
+
+    // Opponent wins
+    const winnerColor = playerColor === "white" ? "black" : "white";
+    this.state = {
+      ...this.buildState(),
+      status: "checkmate",
+      winner: winnerColor
+    };
+  }
+
   getState() { return this.state; }
 
   serialize(): SerializedGame<ChessGameState> {

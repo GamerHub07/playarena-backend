@@ -32,6 +32,25 @@ export class SudokuEngine extends GameEngine<SudokuState> {
         return this.state.isWon ? 0 : null; // Single player is index 0
     }
 
+    getCurrentPlayerIndex(): number {
+        return 0;
+    }
+
+    autoPlay(playerIndex: number): SudokuState {
+        // Implement simple auto-play or pass
+        // For Sudoku, finding a valid move is complex, so we might just give up or wait
+        // Or we could implement a hint system here?
+        // keeping it safe:
+        return this.state;
+    }
+
+    eliminatePlayer(playerIndex: number): void {
+        if (playerIndex === 0) {
+            this.state.isComplete = true;
+            this.state.isWon = false;
+        }
+    }
+
     handleAction(playerId: string, action: string, payload: unknown): SudokuState {
         if (this.state.isComplete && action !== 'new_game') {
             return this.state;
