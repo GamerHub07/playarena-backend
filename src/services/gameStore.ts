@@ -20,10 +20,12 @@ import { MonopolyEngine } from '../games/monopoly';
 import { PokerEngine } from '../games/poker/PokerEngine';
 import { SudokuEngine } from '../games/sudoku/SudokuEngine';
 import { Engine2048 } from '../games/2048/Engine2048';
+import { MemoryEngine } from '../games/memory/MemoryEngine';
+import { CandyEngine } from '../games/candy-chakachak/CandyEngine';
 import { featureFlags } from '../config/featureFlags';
 
 // Game type registry - add new games here
-export type GameType = 'ludo' | 'snake-ladder' | 'monopoly' | 'poker' | 'sudoku' | '2048';
+export type GameType = 'ludo' | 'snake-ladder' | 'monopoly' | 'poker' | 'sudoku' | '2048' | 'memory' | 'candy-chakachak';
 
 
 // Factory function type for creating game engines
@@ -38,6 +40,8 @@ const gameFactories: Record<GameType, GameEngineFactory> = {
     'poker': (roomCode) => new PokerEngine(roomCode),
     'sudoku': (roomCode) => new SudokuEngine(roomCode),
     '2048': (roomCode) => new Engine2048(roomCode),
+    'memory': (roomCode) => new MemoryEngine(roomCode),
+    'candy-chakachak': (roomCode) => new CandyEngine(roomCode),
 };
 
 

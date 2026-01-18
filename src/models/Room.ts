@@ -49,7 +49,7 @@ const RoomSchema = new Schema<IRoom>({
     gameType: {
         type: String,
         required: true,
-        enum: ['ludo', 'chess', 'snake-ladder', 'monopoly', 'poker', '2048', 'sudoku'],
+        enum: ['ludo', 'chess', 'snake-ladder', 'monopoly', 'poker', '2048', 'sudoku', 'memory', 'candy-chakachak'],
 
     },
     status: {
