@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import Room, { IPlayer } from '../models/Room';
 import GuestSession from '../models/GuestSession';
 import { v4 as uuidv4 } from 'uuid';
+import { gameStore } from '../services/gameStore';
 
 // Generate 6-character room code
 const generateRoomCode = (): string => {
@@ -59,6 +60,14 @@ export const createRoom = async (req: Request, res: Response): Promise<void> => 
             maxPlayers: gameType === 'ludo' ? 4 : gameType === 'monopoly' ? 6 : gameType === 'snake-ladder' ? 4 : gameType === 'poker' ? 8 : gameType === 'memory' ? 1 : gameType === 'candy-chakachak' ? 1 : 4,
             minPlayers: 2,
         });
+
+        // CREATE GAME ENGINE (CRITICAL FIX for chess)
+        try {
+            gameStore.createGame(gameType, room.code);
+            console.log(`🎮 Game engine created for ${gameType} in room ${room.code}`);
+        } catch (err) {
+            console.error('Game engine creation failed:', err);
+        }
 
         res.status(201).json({
             success: true,

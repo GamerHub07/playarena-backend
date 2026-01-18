@@ -470,4 +470,7 @@ export class LudoEngine extends GameEngine<LudoGameState> {
             movableTokens,
         };
     }
+    getCurrentPlayerIndex(): number {
+        return this.state.currentPlayer;
+    }
 }
