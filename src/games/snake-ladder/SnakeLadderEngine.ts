@@ -253,6 +253,44 @@ export class SnakeLadderEngine extends GameEngine<SnakeLadderGameState> {
         return this.state.winner;
     }
 
+    getCurrentPlayerIndex(): number {
+        return this.state.currentPlayer;
+    }
+
+    autoPlay(playerIndex: number): SnakeLadderGameState {
+        if (this.state.currentPlayer !== playerIndex) {
+            return this.state;
+        }
+
+        if (this.state.turnPhase === 'roll') {
+            this.rollDice(playerIndex);
+        }
+
+        // Handle extra turns (e.g. rolled a 6) with a safety limit
+        let safetyCounter = 0;
+        const maxIterations = 5;
+
+        while (
+            this.state.currentPlayer === playerIndex &&
+            this.state.canRollAgain &&
+            !this.isGameOver() &&
+            safetyCounter < maxIterations
+        ) {
+            safetyCounter++;
+            this.rollDice(playerIndex);
+        }
+
+        return this.state;
+    }
+
+    eliminatePlayer(playerIndex: number): void {
+        // Snake & Ladder typically doesn't have "elimination" mechanics like Poker or Ludo
+        // But we can just skip their turn if they are the current player
+        if (this.state.currentPlayer === playerIndex) {
+            this.nextTurn();
+        }
+    }
+
     getDiceResult(): DiceRollResult | null {
         if (this.state.diceValue === null) return null;
         return {

@@ -205,6 +205,13 @@ export class TicTacToeEngine extends GameEngine<TicTacToeGameState> {
     }
 
     /**
+     * Get current player index
+     */
+    getCurrentPlayerIndex(): number {
+        return this.state.currentPlayer;
+    }
+
+    /**
      * Auto-play for disconnected player (random move)
      * Used by turnTimer when a player times out
      */
