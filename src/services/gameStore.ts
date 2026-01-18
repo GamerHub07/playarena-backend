@@ -20,9 +20,10 @@ import { MonopolyEngine } from '../games/monopoly';
 import { PokerEngine } from '../games/poker/PokerEngine';
 import { TicTacToeEngine } from '../games/tictactoe/TicTacToeEngine';
 import { featureFlags } from '../config/featureFlags';
+import { ChessEngine } from "../games/chess";
 
 // Game type registry - add new games here
-export type GameType = 'ludo' | 'snake-ladder' | 'monopoly' | 'poker' | 'tictactoe';
+export type GameType = 'ludo' | 'snake-ladder' | 'monopoly' | 'poker' | 'tictactoe' | 'chess';
 
 
 // Factory function type for creating game engines
@@ -36,6 +37,7 @@ const gameFactories: Record<GameType, GameEngineFactory> = {
     'monopoly': (roomCode) => new MonopolyEngine(roomCode),
     'poker': (roomCode) => new PokerEngine(roomCode),
     'tictactoe': (roomCode) => new TicTacToeEngine(roomCode),
+    'chess': (roomCode) => new ChessEngine(roomCode),
 };
 
 
