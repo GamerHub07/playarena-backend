@@ -146,7 +146,7 @@ class TurnTimerService {
     // Only handle auto-play for games that support it (Ludo, Snake-Ladder, Poker, Monopoly)
     // Tic Tac Toe, Sudoku, etc don't use auto-play timeouts
     const gameType = engine.getGameType();
-    const NO_TIMER_GAMES = ['tictactoe', 'sudoku', '2048', 'memory', 'candy-chakachak', 'chess'];
+    const NO_TIMER_GAMES = ['tictactoe', 'sudoku', '2048', 'memory', 'candy-curse', 'chess'];
 
     if (NO_TIMER_GAMES.includes(gameType)) {
       console.log(`⏱️ Skipping auto-play for ${gameType} game in room ${roomCode}`);
@@ -325,7 +325,7 @@ class TurnTimerService {
 
     // Skip turn timer for games that don't support it or are single-player
     const gameType = engine.getGameType();
-    const NO_TIMER_GAMES = ['tictactoe', 'sudoku', '2048', 'memory', 'candy-chakachak', 'chess'];
+    const NO_TIMER_GAMES = ['tictactoe', 'sudoku', '2048', 'memory', 'candy-curse', 'chess'];
 
     if (NO_TIMER_GAMES.includes(gameType)) {
       return;

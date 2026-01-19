@@ -266,8 +266,10 @@ export class Engine2048 extends GameEngine<Game2048State> {
         for (let r = 0; r < 4; r++) {
             for (let c = 0; c < 4; c++) {
                 if (!grid[r][c]) return true;
-                if (c < 3 && grid[r][c]!.val === grid[r][c + 1]!.val) return true;
-                if (r < 3 && grid[r][c]!.val === grid[r + 1][c]!.val) return true;
+                // Check right neighbor
+                if (c < 3 && grid[r][c + 1] && grid[r][c]!.val === grid[r][c + 1]!.val) return true;
+                // Check bottom neighbor
+                if (r < 3 && grid[r + 1][c] && grid[r][c]!.val === grid[r + 1][c]!.val) return true;
             }
         }
         return false;

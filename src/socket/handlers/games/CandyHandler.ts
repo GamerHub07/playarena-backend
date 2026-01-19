@@ -2,7 +2,7 @@ import { BaseHandler } from '../BaseHandler';
 import { Socket } from 'socket.io';
 import { SOCKET_EVENTS } from '../../events';
 import { GameActionPayload, GameStartPayload, JoinRoomPayload } from '../../types';
-import { CandyEngine } from '../../../games/candy-chakachak/CandyEngine';
+import { CandyEngine } from '../../../games/candy-curse/CandyEngine';
 import Room from '../../../models/Room';
 import { gameStore } from '../../../services/gameStore';
 import { playtimeTracker } from '../../../services/playtimeTracker';
@@ -35,13 +35,13 @@ export class CandyHandler extends BaseHandler {
     private async handleRoomJoin(socket: Socket, payload: JoinRoomPayload): Promise<void> {
         const code = payload.roomCode.toUpperCase();
         const room = await Room.findOne({ code });
-        if (!room || room.gameType !== 'candy-chakachak') return;
+        if (!room || room.gameType !== 'candy-curse') return;
 
         let engine = gameStore.getGame(code) as CandyEngine;
 
         if (!engine || room.status === 'waiting') {
             if (!engine) {
-                engine = gameStore.createGame('candy-chakachak', code) as CandyEngine;
+                engine = gameStore.createGame('candy-curse', code) as CandyEngine;
                 room.players.forEach(p => {
                     engine.addPlayer({
                         sessionId: p.sessionId,
@@ -81,11 +81,11 @@ export class CandyHandler extends BaseHandler {
         const code = payload.roomCode.toUpperCase();
         const room = await Room.findOne({ code });
 
-        if (!room || room.gameType !== 'candy-chakachak') return;
+        if (!room || room.gameType !== 'candy-curse') return;
 
         let engine = gameStore.getGame(code) as CandyEngine;
         if (!engine) {
-            engine = gameStore.createGame('candy-chakachak', code) as CandyEngine;
+            engine = gameStore.createGame('candy-curse', code) as CandyEngine;
         }
 
         room.players.forEach(p => engine.addPlayer({
@@ -117,7 +117,7 @@ export class CandyHandler extends BaseHandler {
         const code = roomCode.toUpperCase();
         const engine = gameStore.getGame(code) as CandyEngine;
 
-        if (!engine || engine.getGameType() !== 'candy-chakachak') return;
+        if (!engine || engine.getGameType() !== 'candy-curse') return;
 
         const newState = engine.handleAction(socket.data.sessionId, action, data);
 

@@ -12,7 +12,7 @@ export class CandyEngine extends GameEngine<CandyState> {
     }
 
     getGameType(): string {
-        return 'candy-chakachak';
+        return 'candy-curse';
     }
 
     getMinPlayers(): number {
