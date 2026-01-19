@@ -12,6 +12,8 @@ import { GameStartPayload, GameActionPayload } from '../../types';
 import { TicTacToeEngine } from '../../../games/tictactoe';
 import Room from '../../../models/Room';
 import { gameStore } from '../../../services/gameStore';
+import { playtimeTracker } from '../../../services/playtimeTracker';
+import { socketManager } from '../../SocketManager';
 
 export class TicTacToeHandler extends BaseHandler {
     register(socket: Socket): void {
@@ -102,6 +104,14 @@ export class TicTacToeHandler extends BaseHandler {
             })),
         });
 
+        // START TRACKING
+        const sockets = socketManager.getRoomSockets(code);
+        sockets.forEach(s => {
+            if (s.data.userId) {
+                playtimeTracker.startSession(s.data.userId);
+            }
+        });
+
         console.log(`🎮 Tic Tac Toe game started in room ${code}`);
     }
 
@@ -141,6 +151,14 @@ export class TicTacToeHandler extends BaseHandler {
                         sessionId: p.sessionId,
                         symbol: i === 0 ? 'X' : 'O',
                     })),
+                });
+
+                // START TRACKING (Restart)
+                const sockets = socketManager.getRoomSockets(code);
+                sockets.forEach(s => {
+                    if (s.data.userId) {
+                        playtimeTracker.startSession(s.data.userId);
+                    }
                 });
 
                 console.log(`🔄 Tic Tac Toe restarted in room ${code}`);
@@ -189,6 +207,16 @@ export class TicTacToeHandler extends BaseHandler {
 
                 // NOTE: We do NOT delete the game here to allow restart
                 // Game will be cleaned up by stale game cleanup or when room is left
+            }
+
+            if (engine.isGameOver()) {
+                // STOP TRACKING
+                const sockets = socketManager.getRoomSockets(code);
+                sockets.forEach(s => {
+                    if (s.data.userId) {
+                        playtimeTracker.endSession(s.data.userId);
+                    }
+                });
             }
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Unknown error';

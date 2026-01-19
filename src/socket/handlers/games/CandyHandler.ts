@@ -5,6 +5,8 @@ import { GameActionPayload, GameStartPayload, JoinRoomPayload } from '../../type
 import { CandyEngine } from '../../../games/candy-chakachak/CandyEngine';
 import Room from '../../../models/Room';
 import { gameStore } from '../../../services/gameStore';
+import { playtimeTracker } from '../../../services/playtimeTracker';
+import { socketManager } from '../../SocketManager';
 
 export class CandyHandler extends BaseHandler {
     register(socket: Socket): void {
@@ -58,6 +60,14 @@ export class CandyHandler extends BaseHandler {
                     state: engine.getState(),
                     players: engine.getPlayers(),
                 });
+
+                // START TRACKING
+                const sockets = socketManager.getRoomSockets(code);
+                sockets.forEach(s => {
+                    if (s.data.userId) {
+                        playtimeTracker.startSession(s.data.userId);
+                    }
+                });
             }
         } else if (room.status === 'playing' && engine) {
             socket.emit(SOCKET_EVENTS.GAME_START, {
@@ -92,6 +102,14 @@ export class CandyHandler extends BaseHandler {
             state: engine.getState(),
             players: engine.getPlayers(),
         });
+
+        // START TRACKING
+        const sockets = socketManager.getRoomSockets(code);
+        sockets.forEach(s => {
+            if (s.data.userId) {
+                playtimeTracker.startSession(s.data.userId);
+            }
+        });
     }
 
     private async handleGameAction(socket: Socket, payload: GameActionPayload): Promise<void> {
@@ -109,5 +127,15 @@ export class CandyHandler extends BaseHandler {
         });
 
         await Room.updateOne({ code }, { gameState: newState });
+
+        // End playtime session if game is complete
+        if ((newState as any).isComplete) {
+            const sockets = socketManager.getRoomSockets(code);
+            sockets.forEach(s => {
+                if (s.data.userId) {
+                    playtimeTracker.endSession(s.data.userId);
+                }
+            });
+        }
     }
 }
