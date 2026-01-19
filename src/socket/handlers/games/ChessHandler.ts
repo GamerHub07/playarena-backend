@@ -5,6 +5,8 @@ import { SOCKET_EVENTS } from "../../events";
 import { GameStartPayload } from "../../types";
 import { ChessEngine } from "../../../games/chess/ChessEngine";
 import Room from "../../../models/Room";
+import { playtimeTracker } from "../../../services/playtimeTracker";
+import { socketManager } from "../../SocketManager";
 
 export class ChessHandler extends BaseHandler {
     register(socket: Socket): void {
@@ -58,6 +60,11 @@ export class ChessHandler extends BaseHandler {
                     this.emitToRoom(code, "game:state", { state: newState });
                     if (game.isGameOver()) {
                         this.emitToRoom(code, "game:winner", { state: newState });
+                        // STOP TRACKING
+                        const sockets = socketManager.getRoomSockets(code);
+                        sockets.forEach(s => {
+                            if (s.data.userId) playtimeTracker.endSession(s.data.userId);
+                        });
                     }
                     return;
                 }
@@ -75,6 +82,11 @@ export class ChessHandler extends BaseHandler {
                         state: newState
                     });
                     this.emitToRoom(code, "game:state", { state: newState });
+                    // STOP TRACKING
+                    const sockets = socketManager.getRoomSockets(code);
+                    sockets.forEach(s => {
+                        if (s.data.userId) playtimeTracker.endSession(s.data.userId);
+                    });
                     return;
                 }
 
@@ -87,6 +99,11 @@ export class ChessHandler extends BaseHandler {
                     this.emitToRoom(code, "game:state", { state: newState });
                     if (game.isGameOver()) {
                         this.emitToRoom(code, "game:winner", { state: newState });
+                        // STOP TRACKING
+                        const sockets = socketManager.getRoomSockets(code);
+                        sockets.forEach(s => {
+                            if (s.data.userId) playtimeTracker.endSession(s.data.userId);
+                        });
                     }
                     return;
                 }
@@ -109,6 +126,11 @@ export class ChessHandler extends BaseHandler {
                     this.emitToRoom(code, "game:start", {
                         state: newState,
                         players: engine.getPlayers(),
+                    });
+                    // START TRACKING (Rematch)
+                    const sockets = socketManager.getRoomSockets(code);
+                    sockets.forEach(s => {
+                        if (s.data.userId) playtimeTracker.startSession(s.data.userId);
                     });
                     return;
                 }
@@ -133,6 +155,11 @@ export class ChessHandler extends BaseHandler {
 
                 if (game.isGameOver()) {
                     this.emitToRoom(code, "game:winner", { state: newState });
+                    // STOP TRACKING
+                    const sockets = socketManager.getRoomSockets(code);
+                    sockets.forEach(s => {
+                        if (s.data.userId) playtimeTracker.endSession(s.data.userId);
+                    });
                 }
             })
         );
@@ -200,6 +227,14 @@ export class ChessHandler extends BaseHandler {
             state: engine.getState(),
             players: engine.getPlayers(),
             timeControl: payload.timeControl || 3, // Default 3 min if not specified
+        });
+
+        // START TRACKING
+        const sockets = socketManager.getRoomSockets(code);
+        sockets.forEach(s => {
+            if (s.data.userId) {
+                playtimeTracker.startSession(s.data.userId);
+            }
         });
 
         console.log(`♟️ Chess game started in room ${code}`);

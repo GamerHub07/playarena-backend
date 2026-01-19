@@ -21,13 +21,13 @@ import { PokerEngine } from '../games/poker/PokerEngine';
 import { SudokuEngine } from '../games/sudoku/SudokuEngine';
 import { Engine2048 } from '../games/2048/Engine2048';
 import { MemoryEngine } from '../games/memory/MemoryEngine';
-import { CandyEngine } from '../games/candy-chakachak/CandyEngine';
+import { CandyEngine } from '../games/candy-curse/CandyEngine';
 import { TicTacToeEngine } from '../games/tictactoe/TicTacToeEngine';
 import { featureFlags } from '../config/featureFlags';
 import { ChessEngine } from "../games/chess";
 
 // Game type registry - add new games here
-export type GameType = 'ludo' | 'snake-ladder' | 'monopoly' | 'poker' | 'tictactoe' | 'chess' | 'sudoku' | '2048' | 'memory' | 'candy-chakachak';
+export type GameType = 'ludo' | 'snake-ladder' | 'monopoly' | 'poker' | 'tictactoe' | 'chess' | 'sudoku' | '2048' | 'memory' | 'candy-curse';
 
 
 // Factory function type for creating game engines
@@ -43,7 +43,7 @@ const gameFactories: Record<GameType, GameEngineFactory> = {
     'sudoku': (roomCode) => new SudokuEngine(roomCode),
     '2048': (roomCode) => new Engine2048(roomCode),
     'memory': (roomCode) => new MemoryEngine(roomCode),
-    'candy-chakachak': (roomCode) => new CandyEngine(roomCode),
+    'candy-curse': (roomCode) => new CandyEngine(roomCode),
     'tictactoe': (roomCode) => new TicTacToeEngine(roomCode),
     'chess': (roomCode) => new ChessEngine(roomCode),
 };

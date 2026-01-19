@@ -184,22 +184,12 @@ export class SudokuHandler extends BaseHandler {
 
         // Check for completion/winner
         if (engine.isGameOver()) {
-            // Sudoku completion doesn't necessarily mean "Game Over" in a multiplayer sense unless competitive.
-            // But let's follow the general pattern.
-            // For single player Sudoku in a room, maybe we just notify "Puzzle Solved".
-            // If we want to persist "Finished" status:
-
-            // If it's just a solo play, we might not close the room, allowing "New Game".
-            // So we might NOT set room status to 'finished' here, or maybe we do?
-            // The engine sets isComplete = true. 
-            // Let's Just finish it for now if that's the standard flow, 
-            // OR keep it open for "New Game".
-            // Given the frontend has a "New Game" button in controls even after win,
-            // we probably shouldn't kill the room. 
-            // But existing Ludo handler finishes room.
-            // Sudoku seems to support "New Game" action which resets state.
-            // So we WON'T set room.status = 'finished' automatically unless it's a specific competitive mode.
-            // We'll just emit the state which says "isComplete: true".
+            const sockets = socketManager.getRoomSockets(code);
+            sockets.forEach(s => {
+                if (s.data.userId) {
+                    playtimeTracker.endSession(s.data.userId);
+                }
+            });
         }
     }
 }

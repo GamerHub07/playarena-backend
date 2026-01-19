@@ -153,5 +153,14 @@ export class Game2048Handler extends BaseHandler {
             { code },
             { gameState: newState }
         );
+
+        if ((newState as any).gameOver) {
+            const sockets = socketManager.getRoomSockets(code);
+            sockets.forEach(s => {
+                if (s.data.userId) {
+                    playtimeTracker.endSession(s.data.userId);
+                }
+            });
+        }
     }
 }

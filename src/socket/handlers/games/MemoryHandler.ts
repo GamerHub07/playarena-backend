@@ -5,7 +5,8 @@ import { GameActionPayload, GameStartPayload, JoinRoomPayload } from '../../type
 import { MemoryEngine } from '../../../games/memory/MemoryEngine';
 import Room from '../../../models/Room';
 import { gameStore } from '../../../services/gameStore';
-import { socketManager } from '../../SocketManager'; // Ensure this import path is correct
+import { socketManager } from '../../SocketManager';
+import { playtimeTracker } from '../../../services/playtimeTracker';
 
 export class MemoryHandler extends BaseHandler {
     register(socket: Socket): void {
@@ -59,6 +60,14 @@ export class MemoryHandler extends BaseHandler {
                     state: engine.getState(),
                     players: engine.getPlayers(),
                 });
+
+                // START TRACKING
+                const sockets = socketManager.getRoomSockets(code);
+                sockets.forEach(s => {
+                    if (s.data.userId) {
+                        playtimeTracker.startSession(s.data.userId);
+                    }
+                });
             }
         } else if (room.status === 'playing' && engine) {
             socket.emit(SOCKET_EVENTS.GAME_START, {
@@ -97,6 +106,14 @@ export class MemoryHandler extends BaseHandler {
             state: engine.getState(),
             players: engine.getPlayers(),
         });
+
+        // START TRACKING
+        const sockets = socketManager.getRoomSockets(code);
+        sockets.forEach(s => {
+            if (s.data.userId) {
+                playtimeTracker.startSession(s.data.userId);
+            }
+        });
     }
 
     private async handleGameAction(socket: Socket, payload: GameActionPayload): Promise<void> {
@@ -119,5 +136,15 @@ export class MemoryHandler extends BaseHandler {
             { code },
             { gameState: newState }
         );
+
+        if (engine.isGameOver()) {
+            // STOP TRACKING
+            const sockets = socketManager.getRoomSockets(code);
+            sockets.forEach(s => {
+                if (s.data.userId) {
+                    playtimeTracker.endSession(s.data.userId);
+                }
+            });
+        }
     }
 }

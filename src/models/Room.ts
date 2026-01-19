@@ -1,6 +1,6 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
-export type GameType = 'ludo' | 'chess' | 'snake-ladder' | 'monopoly' | 'poker' | '2048' | 'sudoku' | 'tictactoe' | 'memory' | 'candy-chakachak';
+export type GameType = 'ludo' | 'chess' | 'snake-ladder' | 'monopoly' | 'poker' | '2048' | 'sudoku' | 'tictactoe' | 'memory' | 'candy-curse';
 
 
 export type RoomStatus = 'waiting' | 'playing' | 'finished';
@@ -49,7 +49,7 @@ const RoomSchema = new Schema<IRoom>({
     gameType: {
         type: String,
         required: true,
-        enum: ['ludo', 'chess', 'snake-ladder', 'monopoly', 'poker', 'tictactoe', '2048', 'sudoku', 'memory', 'candy-chakachak'],
+        enum: ['ludo', 'chess', 'snake-ladder', 'monopoly', 'poker', 'tictactoe', '2048', 'sudoku', 'memory', 'candy-curse'],
 
     },
     status: {

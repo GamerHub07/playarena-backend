@@ -2,9 +2,11 @@ import { BaseHandler } from '../BaseHandler';
 import { Socket } from 'socket.io';
 import { SOCKET_EVENTS } from '../../events';
 import { GameActionPayload, GameStartPayload, JoinRoomPayload } from '../../types';
-import { CandyEngine } from '../../../games/candy-chakachak/CandyEngine';
+import { CandyEngine } from '../../../games/candy-curse/CandyEngine';
 import Room from '../../../models/Room';
 import { gameStore } from '../../../services/gameStore';
+import { playtimeTracker } from '../../../services/playtimeTracker';
+import { socketManager } from '../../SocketManager';
 
 export class CandyHandler extends BaseHandler {
     register(socket: Socket): void {
@@ -33,13 +35,13 @@ export class CandyHandler extends BaseHandler {
     private async handleRoomJoin(socket: Socket, payload: JoinRoomPayload): Promise<void> {
         const code = payload.roomCode.toUpperCase();
         const room = await Room.findOne({ code });
-        if (!room || room.gameType !== 'candy-chakachak') return;
+        if (!room || room.gameType !== 'candy-curse') return;
 
         let engine = gameStore.getGame(code) as CandyEngine;
 
         if (!engine || room.status === 'waiting') {
             if (!engine) {
-                engine = gameStore.createGame('candy-chakachak', code) as CandyEngine;
+                engine = gameStore.createGame('candy-curse', code) as CandyEngine;
                 room.players.forEach(p => {
                     engine.addPlayer({
                         sessionId: p.sessionId,
@@ -58,6 +60,14 @@ export class CandyHandler extends BaseHandler {
                     state: engine.getState(),
                     players: engine.getPlayers(),
                 });
+
+                // START TRACKING
+                const sockets = socketManager.getRoomSockets(code);
+                sockets.forEach(s => {
+                    if (s.data.userId) {
+                        playtimeTracker.startSession(s.data.userId);
+                    }
+                });
             }
         } else if (room.status === 'playing' && engine) {
             socket.emit(SOCKET_EVENTS.GAME_START, {
@@ -71,11 +81,11 @@ export class CandyHandler extends BaseHandler {
         const code = payload.roomCode.toUpperCase();
         const room = await Room.findOne({ code });
 
-        if (!room || room.gameType !== 'candy-chakachak') return;
+        if (!room || room.gameType !== 'candy-curse') return;
 
         let engine = gameStore.getGame(code) as CandyEngine;
         if (!engine) {
-            engine = gameStore.createGame('candy-chakachak', code) as CandyEngine;
+            engine = gameStore.createGame('candy-curse', code) as CandyEngine;
         }
 
         room.players.forEach(p => engine.addPlayer({
@@ -92,6 +102,14 @@ export class CandyHandler extends BaseHandler {
             state: engine.getState(),
             players: engine.getPlayers(),
         });
+
+        // START TRACKING
+        const sockets = socketManager.getRoomSockets(code);
+        sockets.forEach(s => {
+            if (s.data.userId) {
+                playtimeTracker.startSession(s.data.userId);
+            }
+        });
     }
 
     private async handleGameAction(socket: Socket, payload: GameActionPayload): Promise<void> {
@@ -99,7 +117,7 @@ export class CandyHandler extends BaseHandler {
         const code = roomCode.toUpperCase();
         const engine = gameStore.getGame(code) as CandyEngine;
 
-        if (!engine || engine.getGameType() !== 'candy-chakachak') return;
+        if (!engine || engine.getGameType() !== 'candy-curse') return;
 
         const newState = engine.handleAction(socket.data.sessionId, action, data);
 
@@ -109,5 +127,15 @@ export class CandyHandler extends BaseHandler {
         });
 
         await Room.updateOne({ code }, { gameState: newState });
+
+        // End playtime session if game is complete
+        if ((newState as any).isComplete) {
+            const sockets = socketManager.getRoomSockets(code);
+            sockets.forEach(s => {
+                if (s.data.userId) {
+                    playtimeTracker.endSession(s.data.userId);
+                }
+            });
+        }
     }
 }
