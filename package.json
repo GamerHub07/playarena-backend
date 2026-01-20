@@ -8,7 +8,9 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "lint": "eslint src --ext .ts",
-    "check:users": "ts-node src/scripts/listUsers.ts"
+    "check:users": "ts-node src/scripts/listUsers.ts",
+    "check:rooms": "ts-node src/scripts/listActiveRooms.ts",
+    "delete:room": "ts-node src/scripts/deleteRoom.ts"
   },
   "keywords": [
     "gaming",
