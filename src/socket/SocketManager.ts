@@ -190,6 +190,20 @@ class SocketManager {
         });
         return sockets;
     }
+    /**
+     * Emit to a specific user by userId
+     */
+    emitToUser(userId: string, event: string, data: unknown): void {
+        if (!this.io) return;
+
+        // Iterate through all connected sockets to find the one(s) with matching userId
+        // Note: A user might have multiple tabs/devices open
+        for (const [_, socket] of this.io.sockets.sockets) {
+            if (socket.data.userId === userId) {
+                socket.emit(event, data);
+            }
+        }
+    }
 }
 
 // Export singleton instance
