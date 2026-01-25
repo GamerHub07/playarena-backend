@@ -14,6 +14,8 @@ import { PokerActionPayload } from '../../../games/poker/PokerTypes';
 import Room from '../../../models/Room';
 import { gameStore } from '../../../services/gameStore';
 import { turnTimer } from '../../../services/turnTimer';
+import { playtimeTracker } from '../../../services/playtimeTracker';
+import { socketManager } from '../../SocketManager';
 
 export class PokerHandler extends BaseHandler {
     register(socket: Socket): void {
@@ -50,7 +52,8 @@ export class PokerHandler extends BaseHandler {
 
         // Check if game already exists (prevent duplicate starts)
         if (gameStore.hasGame(code)) {
-            return; // Game already started
+            // Force reset if starting again from waiting room
+            gameStore.deleteGame(code);
         }
 
         if (room.players.length < room.minPlayers) {
@@ -97,6 +100,14 @@ export class PokerHandler extends BaseHandler {
                 });
             }
         }
+
+        // START TRACKING
+        const sockets = socketManager.getRoomSockets(code);
+        sockets.forEach(s => {
+            if (s.data.userId) {
+                playtimeTracker.startSession(s.data.userId);
+            }
+        });
 
         console.log(`🃏 Poker game started in room ${code}`);
     }
@@ -177,6 +188,14 @@ export class PokerHandler extends BaseHandler {
 
                 // Clean up game from store
                 gameStore.deleteGame(code);
+
+                // STOP TRACKING
+                const sockets = socketManager.getRoomSockets(code);
+                sockets.forEach(s => {
+                    if (s.data.userId) {
+                        playtimeTracker.endSession(s.data.userId);
+                    }
+                });
 
                 const winnerData = winnerIndex !== null ? {
                     position: winnerIndex,

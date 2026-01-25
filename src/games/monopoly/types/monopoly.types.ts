@@ -44,7 +44,7 @@ export interface TradeOffer {
   createdAt: number;
 }
 
-export type GameLogType = 
+export type GameLogType =
   | 'PASS_GO'           // Collected $200 passing GO
   | 'RENT_PAID'         // Paid rent to another player
   | 'RENT_RECEIVED'     // Received rent from another player

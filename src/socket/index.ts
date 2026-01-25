@@ -6,9 +6,8 @@
 import { Server as SocketServer, Socket } from 'socket.io';
 import { Server as HttpServer } from 'http';
 import { socketManager } from './SocketManager';
-import { RoomHandler, LudoHandler, MonopolyHandler, SnakeLadderHandler, PokerHandler } from './handlers';
+import { RoomHandler, LudoHandler, MonopolyHandler, SnakeLadderHandler, PokerHandler, TicTacToeHandler, ChessHandler, SudokuHandler, Game2048Handler, MemoryHandler, CandyHandler } from './handlers';
 import { featureFlags } from '../config/featureFlags';
-
 
 import { SOCKET_EVENTS } from './events';
 
@@ -65,9 +64,11 @@ function registerHandlers(socket: Socket): void {
     // Ludo game events
     const ludoHandler = new LudoHandler();
     ludoHandler.register(socket);
+
     // Snake & Ladder game events
     const snakeLadderHandler = new SnakeLadderHandler();
     snakeLadderHandler.register(socket);
+
     // Monopoly game events
     const monopolyHandler = new MonopolyHandler();
     monopolyHandler.register(socket);
@@ -78,9 +79,32 @@ function registerHandlers(socket: Socket): void {
         pokerHandler.register(socket);
     }
 
+    // Sudoku game events
+    const sudokuHandler = new SudokuHandler();
+    sudokuHandler.register(socket);
+
+    // 2048 game events
+    const game2048Handler = new Game2048Handler();
+    game2048Handler.register(socket);
+
+    // Memory game events
+    const memoryHandler = new MemoryHandler();
+    memoryHandler.register(socket);
+
+    // Candy game events
+    const candyHandler = new CandyHandler();
+    candyHandler.register(socket);
+
     // Add more game handlers here as needed:
     // const chessHandler = new ChessHandler();
     // chessHandler.register(socket);
+
+    // Tic Tac Toe game events
+    const tictactoeHandler = new TicTacToeHandler();
+    tictactoeHandler.register(socket);
+    // Chess game events
+    const chessHandler = new ChessHandler();
+    chessHandler.register(socket);
 }
 
 // Re-export for convenience

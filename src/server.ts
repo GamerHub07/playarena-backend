@@ -12,6 +12,7 @@ import { logFeatureFlags } from './config/featureFlags';
 import routes from './routes';
 import { errorHandler, notFound } from './middleware/errorHandler';
 import { initializeSocket } from './socket';
+import { gameStore } from './services/gameStore';
 
 const app: Application = express();
 const httpServer = createServer(app);
@@ -41,6 +42,11 @@ app.use('/api', routes);
 // Error handling
 app.use(notFound);
 app.use(errorHandler);
+
+// Schedule cleanup of stale games every hour
+setInterval(() => {
+  gameStore.cleanupStaleGames();
+}, 60 * 60 * 1000); // 1 hour
 
 // Start server
 httpServer.listen(PORT, () => {

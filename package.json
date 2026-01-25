@@ -8,7 +8,9 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "lint": "eslint src --ext .ts",
-    "check:users": "ts-node src/scripts/listUsers.ts"
+    "check:users": "ts-node src/scripts/listUsers.ts",
+    "check:rooms": "ts-node src/scripts/listActiveRooms.ts",
+    "delete:room": "ts-node src/scripts/deleteRoom.ts"
   },
   "keywords": [
     "gaming",
@@ -21,6 +23,7 @@
   "license": "ISC",
   "dependencies": {
     "bcryptjs": "^3.0.3",
+    "chess.js": "^1.4.0",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^5.2.1",

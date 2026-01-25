@@ -76,6 +76,7 @@ export class MonopolyEngine extends GameEngine<MonopolyGameState> {
         const d2 = Math.ceil(Math.random() * 6);
         this.state.dice = [d1, d2];
         const isDoubles = d1 === d2;
+
         // Helper to move player and collect $200 if passing GO
         const movePlayer = (spaces: number) => {
           const oldPosition = player.position;
@@ -88,10 +89,10 @@ export class MonopolyEngine extends GameEngine<MonopolyGameState> {
           player.position = newPosition;
         };
 
-
         // Handle jail
         if (player.inJail) {
           player.jailTurns++;
+
           // Rolled doubles - get out of jail free
           if (isDoubles) {
             player.inJail = false;
@@ -121,6 +122,7 @@ export class MonopolyEngine extends GameEngine<MonopolyGameState> {
           // Track consecutive doubles
           if (isDoubles) {
             this.state.doublesCount++;
+
             // 3 consecutive doubles = go to jail!
             if (this.state.doublesCount >= 3) {
               const JAIL_INDEX = this.state.board.findIndex(s => s.type === "JAIL");
@@ -134,6 +136,7 @@ export class MonopolyEngine extends GameEngine<MonopolyGameState> {
           } else {
             this.state.doublesCount = 0;
           }
+
           // Normal movement
           movePlayer(d1 + d2);
           this.state.phase = "RESOLVE";
@@ -188,6 +191,7 @@ export class MonopolyEngine extends GameEngine<MonopolyGameState> {
         logPropertyBought(this.state, playerId, square.price!, square.name || square.id);
         square.owner = playerId;
         player.properties.push(square.id);
+
         // Check for doubles - player gets another roll
         const isDoublesRoll = this.state.dice && this.state.dice[0] === this.state.dice[1];
         this.state.phase = isDoublesRoll ? "ROLL" : "END_TURN";
@@ -200,6 +204,7 @@ export class MonopolyEngine extends GameEngine<MonopolyGameState> {
         if (propIndex === -1) {
           throw new Error("Player does not own this property");
         }
+
         const square = this.state.board.find(s => s.id === propertyId);
         if (!square) {
           throw new Error("Property not found");
@@ -238,6 +243,7 @@ export class MonopolyEngine extends GameEngine<MonopolyGameState> {
         this.state.phase = isDoublesDecline ? "ROLL" : "END_TURN";
         break;
       }
+
       case "BUILD_HOUSE": {
         const { propertyId } = payload as { propertyId: string };
         const square = this.state.board.find(s => s.id === propertyId);
@@ -410,7 +416,7 @@ export class MonopolyEngine extends GameEngine<MonopolyGameState> {
       case "ACCEPT_TRADE": {
         const { tradeId } = payload as { tradeId: string };
         const trade = this.state.pendingTrades.find(t => t.id === tradeId && t.status === 'pending');
-        
+
         if (!trade) {
           throw new Error("Trade not found or already processed");
         }
@@ -463,7 +469,7 @@ export class MonopolyEngine extends GameEngine<MonopolyGameState> {
       case "REJECT_TRADE": {
         const { tradeId: rejectTradeId } = payload as { tradeId: string };
         const rejectTrade = this.state.pendingTrades.find(t => t.id === rejectTradeId && t.status === 'pending');
-        
+
         if (!rejectTrade) {
           throw new Error("Trade not found or already processed");
         }
@@ -480,7 +486,7 @@ export class MonopolyEngine extends GameEngine<MonopolyGameState> {
       case "CANCEL_TRADE": {
         const { tradeId: cancelTradeId } = payload as { tradeId: string };
         const cancelTrade = this.state.pendingTrades.find(t => t.id === cancelTradeId && t.status === 'pending');
-        
+
         if (!cancelTrade) {
           throw new Error("Trade not found or already processed");
         }
@@ -498,7 +504,7 @@ export class MonopolyEngine extends GameEngine<MonopolyGameState> {
         player.bankrupt = true;
         this.state.bankruptcyOrder.push(playerId);
         player.cash = 0;
-        
+
         // Return properties to bank
         player.properties.forEach(propId => {
           const square = this.state.board.find(s => s.id === propId);
@@ -511,7 +517,7 @@ export class MonopolyEngine extends GameEngine<MonopolyGameState> {
 
         // If it was their turn, advance
         if (this.state.currentTurnIndex === orderedPlayers.indexOf(playerId)) {
-           advanceTurn(this.state, orderedPlayers);
+          advanceTurn(this.state, orderedPlayers);
         }
         break;
       }
@@ -537,5 +543,74 @@ export class MonopolyEngine extends GameEngine<MonopolyGameState> {
       (p) => !p.bankrupt
     )?.sessionId;
     return this.players.findIndex((p) => p.sessionId === winnerId);
+  }
+
+  getCurrentPlayerIndex(): number {
+    return this.state.currentTurnIndex;
+  }
+
+  autoPlay(playerIndex: number): MonopolyGameState {
+    // Basic auto-play logic for Monopoly
+    // 1. If phase is ROLL, roll dice
+    // 2. If phase is DECISION (buy property), decline
+    // 3. If phase is DEBT, try to sell houses/mortgage? Or just bankrupt. For simplicity, we might just end turn or bankrupt if stuck.
+    // 4. If phase is END_TURN, advance turn
+
+    if (this.state.currentTurnIndex !== playerIndex) {
+      return this.state;
+    }
+
+    const orderedPlayers = this.players.map(p => p.sessionId);
+    const playerId = orderedPlayers[playerIndex];
+
+    // Safety check loop
+    let loops = 0;
+    while (this.state.currentTurnIndex === playerIndex && loops < 5 && !this.isGameOver()) {
+      loops++;
+      try {
+        if (this.state.phase === 'ROLL') {
+          this.handleAction(playerId, 'ROLL_DICE', {});
+        } else if (this.state.phase === 'DECISION') {
+          this.handleAction(playerId, 'DECLINE_PROPERTY', {});
+        } else if (this.state.phase === 'JAIL') {
+          // Try to roll doubles or pay fine if afford
+          const player = this.state.playerState[playerId];
+          if (player.cash >= 50) {
+            this.handleAction(playerId, 'PAY_JAIL_FINE', {});
+          } else {
+            this.handleAction(playerId, 'ROLL_DICE', {});
+          }
+        } else if (this.state.phase === 'DEBT') {
+          // Complex to handle debt automatically. For now, declare bankruptcy to avoid stalling
+          // A better AI would sell assets, but for a simple "time out" handler, bankruptcy is safe
+          this.handleAction(playerId, 'BANKRUPT', {});
+        } else if (this.state.phase === 'RESOLVE') {
+          // Should have resolved automatically, but if stuck:
+          this.state.phase = 'END_TURN';
+        } else if (this.state.phase === 'END_TURN') {
+          this.handleAction(playerId, 'END_TURN', {});
+        } else {
+          // Unknown phase, break loop
+          break;
+        }
+      } catch (e) {
+        console.error(`Auto-play error for player ${playerId}:`, e);
+        // If error forces stuck state, pass turn (forcefully)
+        advanceTurn(this.state, orderedPlayers);
+        break;
+      }
+    }
+
+    return this.state;
+  }
+
+  eliminatePlayer(playerIndex: number): void {
+    const orderedPlayers = this.players.map(p => p.sessionId);
+    const playerId = orderedPlayers[playerIndex];
+    const player = this.state.playerState[playerId];
+
+    if (player && !player.bankrupt) {
+      this.handleAction(playerId, 'BANKRUPT', {});
+    }
   }
 }

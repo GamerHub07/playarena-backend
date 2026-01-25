@@ -51,7 +51,8 @@ export class SnakeLadderHandler extends BaseHandler {
 
         // Check if game already exists (prevent duplicate starts)
         if (gameStore.hasGame(code)) {
-            return; // Game already started
+            // Force reset if starting again from waiting room
+            gameStore.deleteGame(code);
         }
 
         if (room.players.length < room.minPlayers) {
@@ -132,8 +133,8 @@ export class SnakeLadderHandler extends BaseHandler {
                 lastAction: { action, by: sessionId },
             });
 
-            // For roll actions, emit animation steps
-            if (action === 'roll') {
+            // For move actions, emit animation steps (movement now happens on 'move', not 'roll')
+            if (action === 'move') {
                 const lastMove = engine.getLastMove();
 
                 if (lastMove) {

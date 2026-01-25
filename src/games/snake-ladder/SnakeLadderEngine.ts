@@ -100,6 +100,10 @@ export class SnakeLadderEngine extends GameEngine<SnakeLadderGameState> {
         switch (action) {
             case 'roll':
                 return this.rollDice(playerIndex);
+            case 'move':
+                return this.moveToken(playerIndex);
+            case 'completeTurn':
+                return this.completeTurn(playerIndex);
             default:
                 throw new Error(`Unknown action: ${action}`);
         }
@@ -109,20 +113,24 @@ export class SnakeLadderEngine extends GameEngine<SnakeLadderGameState> {
     // CORE LOGIC
     // ═══════════════════════════════════════════════════════════════
 
+    /**
+     * Roll the dice - only determines dice value, doesn't move token
+     * After rolling, phase changes to 'move' - player must click token to move
+     */
     private rollDice(playerIndex: number): SnakeLadderGameState {
         if (this.state.turnPhase !== 'roll') {
-            throw new Error('Cannot roll now (waiting phase)');
+            throw new Error('Cannot roll now (not your roll phase)');
         }
 
         const diceValue = Math.floor(Math.random() * 6) + 1;
         this.state.diceValue = diceValue;
         this.state.lastRoll = diceValue;
 
-        // 6 Handling
+        // 6 Handling - check for consecutive sixes penalty
         if (diceValue === 6) {
             this.state.consecutiveSixes++;
             if (this.state.consecutiveSixes >= MAX_CONSECUTIVE_SIXES) {
-                // Penalty: Skip turn immediately
+                // Penalty: Skip turn immediately (no move phase)
                 this.state.consecutiveSixes = 0;
                 this.nextTurn();
                 return this.state;
@@ -133,7 +141,26 @@ export class SnakeLadderEngine extends GameEngine<SnakeLadderGameState> {
             this.state.canRollAgain = false;
         }
 
-        // Calculate Movement
+        // Set phase to 'move' - player must now click their token
+        this.state.turnPhase = 'move';
+
+        return this.state;
+    }
+
+    /**
+     * Move the token - called when player clicks their token after rolling
+     * Handles the actual movement logic including snakes, ladders, and win condition
+     */
+    private moveToken(playerIndex: number): SnakeLadderGameState {
+        if (this.state.turnPhase !== 'move') {
+            throw new Error('Cannot move now (roll the dice first)');
+        }
+
+        if (this.state.diceValue === null) {
+            throw new Error('No dice value - roll first');
+        }
+
+        const diceValue = this.state.diceValue;
         const player = this.state.players[playerIndex];
         const currentPos = player.position;
         let newPos = currentPos + diceValue;
@@ -156,9 +183,6 @@ export class SnakeLadderEngine extends GameEngine<SnakeLadderGameState> {
         };
 
         // Check Interactions (Snake -> Tail, Ladder -> Top)
-        // Priority: In standard games, snakes/ladders don't chain (land on snake tail which is ladder bottom -> doesn't climb).
-        // We check ONCE.
-
         if (SNAKES[newPos]) {
             move.usedSnake = true;
             move.snakeEnd = SNAKES[newPos];
@@ -182,6 +206,23 @@ export class SnakeLadderEngine extends GameEngine<SnakeLadderGameState> {
         }
 
         // Turn Management
+        // Instead of immediate next turn, we wait for animation to complete
+        this.state.turnPhase = 'animating';
+
+        return this.state;
+    }
+
+    /**
+     * Called by client when animation finishes
+     * Switches turn to next player (or same player if rolled 6)
+     */
+    private completeTurn(playerIndex: number): SnakeLadderGameState {
+        if (this.state.turnPhase !== 'animating') {
+            // lenient check - if already moved on, just return state
+            // throw new Error('Not animating'); 
+            return this.state;
+        }
+
         if (this.state.canRollAgain) {
             this.state.turnPhase = 'roll'; // Same player rolls again
         } else {
@@ -210,6 +251,44 @@ export class SnakeLadderEngine extends GameEngine<SnakeLadderGameState> {
 
     getWinner(): number | null {
         return this.state.winner;
+    }
+
+    getCurrentPlayerIndex(): number {
+        return this.state.currentPlayer;
+    }
+
+    autoPlay(playerIndex: number): SnakeLadderGameState {
+        if (this.state.currentPlayer !== playerIndex) {
+            return this.state;
+        }
+
+        if (this.state.turnPhase === 'roll') {
+            this.rollDice(playerIndex);
+        }
+
+        // Handle extra turns (e.g. rolled a 6) with a safety limit
+        let safetyCounter = 0;
+        const maxIterations = 5;
+
+        while (
+            this.state.currentPlayer === playerIndex &&
+            this.state.canRollAgain &&
+            !this.isGameOver() &&
+            safetyCounter < maxIterations
+        ) {
+            safetyCounter++;
+            this.rollDice(playerIndex);
+        }
+
+        return this.state;
+    }
+
+    eliminatePlayer(playerIndex: number): void {
+        // Snake & Ladder typically doesn't have "elimination" mechanics like Poker or Ludo
+        // But we can just skip their turn if they are the current player
+        if (this.state.currentPlayer === playerIndex) {
+            this.nextTurn();
+        }
     }
 
     getDiceResult(): DiceRollResult | null {

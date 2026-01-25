@@ -36,13 +36,15 @@ export interface PlayerInfo {
 // Game Events Payloads
 export interface GameStartPayload {
     roomCode: string;
+    timeControl?: number; // Time in minutes for the game (for chess)
 }
 
 export interface GameActionPayload {
     roomCode: string;
-    action: 'roll' | 'move';
+    action: 'roll' | 'move' | 'restart';
     data?: {
         tokenIndex?: number;
+        cellIndex?: number;  // For Tic Tac Toe moves
     };
 }
 

@@ -145,7 +145,6 @@ export function executeCard(
       }
       break;
 
-
     case "REPAIRS": {
       // Calculate repair costs based on houses/hotels
       let totalCost = 0;

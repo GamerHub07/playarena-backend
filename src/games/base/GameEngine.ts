@@ -80,6 +80,23 @@ export abstract class GameEngine<TState = unknown> {
     /** Get winner index, or null if no winner yet */
     abstract getWinner(): number | null;
 
+    /**
+     * Get the index of the player whose turn it currently is
+     */
+    abstract getCurrentPlayerIndex(): number;
+
+    /**
+     * Auto-play for a player who has timed out
+     * @param playerIndex The index of the player to auto-play for
+     */
+    abstract autoPlay(playerIndex: number): TState;
+
+    /**
+     * Eliminate a player from the game (e.g. after too many timeouts)
+     * @param playerIndex The index of the player to eliminate
+     */
+    abstract eliminatePlayer(playerIndex: number): void;
+
     // ═══════════════════════════════════════════════════════════════
     // RECONNECTION STATE - Override in game engines that need custom behavior
     // ═══════════════════════════════════════════════════════════════
@@ -100,6 +117,21 @@ export abstract class GameEngine<TState = unknown> {
             state: this.state,
             availableActions: [],
         };
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // LIFECYCLE HOOKS (OPTIONAL)
+    // ═══════════════════════════════════════════════════════════════
+
+    /**
+     * Called exactly once when the game officially starts.
+     * Games may override this to initialize turn order,
+     * assign colors, shuffle cards, etc.
+     *
+     * Default: no-op (safe for existing games)
+     */
+    onGameStart(): void {
+        // intentionally empty
     }
 
     // ═══════════════════════════════════════════════════════════════

@@ -641,6 +641,10 @@ export class PokerEngine extends GameEngine<PokerGameState> {
         return this.state.gameWinner;
     }
 
+    getCurrentPlayerIndex(): number {
+        return this.state.currentPlayerIndex;
+    }
+
     /**
      * Auto-play for a disconnected player (auto-fold)
      * Used by turnTimer when a player times out
