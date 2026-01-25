@@ -1,4 +1,5 @@
 import User from '../models/User';
+import { socketManager } from '../socket/SocketManager';
 
 class PlaytimeTracker {
   // Map userId -> startTime (ms)
@@ -59,8 +60,17 @@ class PlaytimeTracker {
         // Keep the remainder in the buffer
         user.playtimeBufferSeconds = user.playtimeBufferSeconds % SECONDS_PER_INTERVAL;
 
+
         console.log(`🎉 User ${user.username} earned ${pointsEarned} points! Total Points: ${user.points}`);
+
+        // Notify user via socket
+        socketManager.emitToUser(userId, 'user:points', {
+          added: pointsEarned,
+          total: user.points,
+          reason: 'Playtime Reward'
+        });
       }
+
 
       await user.save();
       console.log(`⏱️ Playtime saved for ${user.username}: +${durationSeconds}s`);
